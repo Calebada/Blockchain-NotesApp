@@ -9,7 +9,6 @@ Blockfrost is the chain access layer for this app. It does not sign wallet trans
 ```text
 .
 |-- backend
-|   |-- .env.example
 |   |-- blockchain.js
 |   |-- package.json
 |   |-- server.js
