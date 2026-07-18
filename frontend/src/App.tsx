@@ -10,6 +10,7 @@ interface UINote {
   hash: string;
   author: string;
   content: string;
+  title?: string;
   timestamp: string | number;
   tag?: string;
   isPinned?: boolean;
@@ -30,25 +31,41 @@ export default function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [modalError, setModalError] = useState("");
 
-  // Convert chain blocks to UI notes (and mock some tags/pins for the UI demo)
+  const [pinnedHashes, setPinnedHashes] = useState<Set<string>>(new Set());
+
+  // Convert chain blocks to UI notes
   const allNotes: UINote[] = useMemo(() => {
-    return [...chain].reverse().map((block, index) => {
-      // Mock tags based on hash to keep it consistent
-      const tags = ['General', 'Ideas', 'Personal', 'Work'];
-      const tagIndex = block.hash ? block.hash.charCodeAt(0) % tags.length : 0;
-      
+    return [...chain].reverse().map((block) => {
+      let title = '';
+      let tag = 'General';
+      let content = block.note.content;
+
+      try {
+        // Try parsing JSON format first
+        const parsed = JSON.parse(block.note.content);
+        if (parsed && typeof parsed === 'object' && parsed.content) {
+          title = parsed.title || '';
+          tag = parsed.tag || 'General';
+          content = parsed.content;
+        }
+      } catch (e) {
+        // Fallback for old plaintext format
+        // We will just let MainArea extract the title from content
+      }
+
       return {
         hash: block.hash,
         author: block.note.author,
-        content: block.note.content,
+        content: content,
+        title: title,
         timestamp: block.timestamp,
-        tag: tags[tagIndex],
-        isPinned: index === 0 || index === 2 // Just pin a couple for demo purposes
+        tag: tag,
+        isPinned: pinnedHashes.has(block.hash)
       };
     });
-  }, [chain]);
+  }, [chain, pinnedHashes]);
 
-  // Filter notes based on active tab and search
+  // Filter and sort notes
   const filteredNotes = useMemo(() => {
     let result = allNotes;
     
@@ -68,6 +85,13 @@ export default function App() {
         (n.tag && n.tag.toLowerCase().includes(q))
       );
     }
+    
+    // Sort pinned notes to the top
+    result.sort((a, b) => {
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+      return 0; // Already in reverse chronological order
+    });
     
     return result;
   }, [allNotes, activeTab, searchQuery]);
@@ -92,7 +116,7 @@ export default function App() {
   const mainTitle = useMemo(() => {
     if (activeTab === 'all') return 'All notes';
     if (activeTab === 'pinned') return 'Pinned notes';
-    return `#${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}`;
+    return `#${activeTab.toLowerCase()}`;
   }, [activeTab]);
 
 
@@ -120,18 +144,21 @@ export default function App() {
     loadChain();
   }, []);
 
-  async function handleSaveNote(content: string, tag: string) {
+  async function handleSaveNote(content: string, tag: string, title?: string) {
     setIsSubmitting(true);
     setModalError("");
 
     try {
-      // Since our current backend doesn't support tags/edits, we just add a new note
-      // If we are "editing", we could potentially send a request to update, but the 
-      // blockchain API (chain of blocks) is immutable in this demo.
-      // We will just create a new note for the demo.
+      // Encode metadata into the content string as JSON so we can persist Title and Tag
+      const notePayload = JSON.stringify({
+        title: title || '',
+        tag: tag || 'General',
+        content: content.trim()
+      });
+
       await addNote({
-        author: "Me", // Hardcoded for this UI demo
-        content: content.trim(),
+        author: "Me",
+        content: notePayload,
       });
 
       await loadChain();
@@ -152,6 +179,22 @@ export default function App() {
   function handleOpenEditNote(id: string) {
     setEditingNoteId(id);
     setIsModalOpen(true);
+  }
+  
+  function handleDeleteNote(id: string) {
+    alert("Delete functionality is not fully implemented in the blockchain backend yet, but the UI is ready!");
+  }
+  
+  function handleTogglePin(id: string) {
+    setPinnedHashes(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
   }
   
   const editingNote = editingNoteId ? allNotes.find(n => n.hash === editingNoteId) : undefined;
@@ -183,6 +226,8 @@ export default function App() {
             onSearch={setSearchQuery}
             onNewNote={handleOpenNewNote}
             onEditNote={handleOpenEditNote}
+            onDeleteNote={handleDeleteNote}
+            onTogglePin={handleTogglePin}
           />
         )}
       </div>

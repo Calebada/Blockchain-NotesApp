@@ -17,9 +17,12 @@ interface MainAreaProps {
   onSearch: (query: string) => void;
   onNewNote: () => void;
   onEditNote: (id: string) => void;
+  onDeleteNote?: (id: string) => void;
+  onTogglePin?: (id: string) => void;
 }
 
-export default function MainArea({ title, notes, onSearch, onNewNote, onEditNote }: MainAreaProps) {
+export default function MainArea({ title, notes, onSearch, onNewNote, onEditNote, onDeleteNote, onTogglePin }: MainAreaProps) {
+  const [isSearchFocused, setIsSearchFocused] = React.useState(false);
   return (
     <div style={{
       marginLeft: '260px', // width of sidebar
@@ -39,24 +42,29 @@ export default function MainArea({ title, notes, onSearch, onNewNote, onEditNote
             {notes.length} {notes.length === 1 ? 'note' : 'notes'}
           </span>
         </div>
-        
+
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
           {/* Search Bar */}
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '8px', 
-            backgroundColor: '#FFFFFF',
-            border: '1px solid var(--border-light)',
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            backgroundColor: 'transparent',
+            border: '1px solid',
+            borderColor: isSearchFocused ? 'var(--accent-orange)' : 'rgba(0, 0, 0, 0.08)',
+            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.04)',
             borderRadius: '8px',
             padding: '8px 16px',
-            width: '280px'
+            width: '280px',
+            transition: 'border-color 0.2s ease'
           }}>
             <Search size={16} color="var(--text-muted)" />
-            <input 
-              type="text" 
-              placeholder="Search notes..." 
+            <input
+              type="text"
+              placeholder="Search notes..."
               onChange={(e) => onSearch(e.target.value)}
+              onFocus={() => setIsSearchFocused(true)}
+              onBlur={() => setIsSearchFocused(false)}
               style={{
                 border: 'none',
                 outline: 'none',
@@ -67,12 +75,12 @@ export default function MainArea({ title, notes, onSearch, onNewNote, onEditNote
               }}
             />
           </div>
-          
+
           {/* Top Right New Note Button */}
-          <button 
+          <button
             onClick={onNewNote}
             style={{
-              backgroundColor: '#2A2A2A',
+              backgroundColor: '#221811',
               color: '#FFFFFF',
               border: 'none',
               borderRadius: '8px',
@@ -85,8 +93,8 @@ export default function MainArea({ title, notes, onSearch, onNewNote, onEditNote
               cursor: 'pointer',
               transition: 'background-color 0.2s'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1A1A1A'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#2A2A2A'}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#221811'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#221811'}
           >
             <Plus size={16} />
             New note
@@ -107,13 +115,24 @@ export default function MainArea({ title, notes, onSearch, onNewNote, onEditNote
           alignItems: 'start'
         }}>
           {notes.map(note => {
-            // Try to extract title from content if no explicit title exists
+            // Extract title and content depending on if it was parsed as JSON
             const lines = note.content.split('\n');
-            const title = lines[0].length > 30 ? lines[0].substring(0, 30) + '...' : lines[0];
-            const contentPreview = lines.slice(1).join('\n') || note.content;
+            const title = note.title || (lines[0].length > 30 ? lines[0].substring(0, 30) + '...' : lines[0]);
+            const contentPreview = note.title ? note.content : (lines.slice(1).join('\n') || note.content);
+
+            // Format timestamp to MM/DD/YY-h:mm A (e.g. 07/18/26-9:17 PM)
+            const date = new Date(note.timestamp);
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const day = date.getDate().toString().padStart(2, '0');
+            const year = date.getFullYear().toString().slice(-2);
             
-            // Format timestamp
-            const timeAgo = typeof note.timestamp === 'string' ? note.timestamp : new Date(note.timestamp).toLocaleString();
+            let hours = date.getHours();
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12; // the hour '0' should be '12'
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            
+            const formattedTime = `${month}/${day}/${year}-${hours}:${minutes} ${ampm}`;
 
             return (
               <NoteCard
@@ -121,10 +140,12 @@ export default function MainArea({ title, notes, onSearch, onNewNote, onEditNote
                 id={note.hash}
                 title={title}
                 content={contentPreview}
-                timestamp={timeAgo}
+                timestamp={formattedTime}
                 tag={note.tag || 'General'}
                 isPinned={note.isPinned}
                 onEdit={onEditNote}
+                onDelete={onDeleteNote}
+                onTogglePin={onTogglePin}
               />
             );
           })}

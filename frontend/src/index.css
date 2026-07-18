@@ -1,12 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap');
 
 :root {
-  --bg-sidebar: #2C2621;
-  --bg-main: #FDFCF8;
+  --bg-sidebar: #221811;
+  --bg-main: #FDFAF4;
   --bg-card: #FFFFFF;
   --accent-orange: #F5A566;
   --accent-orange-hover: #E39455;
-  --text-main: #2A2A2A;
+  --text-main: #2E2924;
   --text-muted: #737373;
   --text-sidebar: #D1CDCA;
   --text-sidebar-active: #FFFFFF;
@@ -27,10 +27,23 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   margin: 0;
 }
 
+/* Hide scrollbar for all browsers while maintaining scroll functionality */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
 .serif-title {
   font-family: 'Playfair Display', serif;
   letter-spacing: -0.5px;
@@ -60,13 +73,16 @@ h1, h2, h3, h4, h5, h6 {
   width: 8px;
   height: 8px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
   background: #E0E0E0;
   border-radius: 4px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: #C0C0C0;
 }

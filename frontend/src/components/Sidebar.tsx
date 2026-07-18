@@ -1,5 +1,5 @@
-import React from 'react';
-import { PenSquare, Plus, Inbox, Star, Tag } from 'lucide-react';
+import React, { useState } from 'react';
+import { PenSquare, Plus, Inbox, Star, Tag, Search } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
@@ -13,7 +13,13 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ activeTab, onTabSelect, onNewNote, counts }: SidebarProps) {
-  const tags = ['General', 'Ideas', 'Personal', 'Work'];
+  const [tagSearchQuery, setTagSearchQuery] = useState('');
+
+  const fixedNav = ['Work', 'Personal', 'Ideas', 'General'];
+  const dynamicTags = Object.keys(counts.tags).filter(
+    tag => !fixedNav.map(t => t.toLowerCase()).includes(tag.toLowerCase()) &&
+           tag.toLowerCase().includes(tagSearchQuery.toLowerCase())
+  );
 
   return (
     <div style={{
@@ -30,10 +36,10 @@ export default function Sidebar({ activeTab, onTabSelect, onNewNote, counts }: S
     }}>
       {/* Logo Area */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px', padding: '0 8px' }}>
-        <div style={{ 
-          width: '36px', 
-          height: '36px', 
-          backgroundColor: 'var(--accent-orange)', 
+        <div style={{
+          width: '36px',
+          height: '36px',
+          backgroundColor: 'var(--accent-orange)',
           borderRadius: '8px',
           display: 'flex',
           alignItems: 'center',
@@ -49,7 +55,7 @@ export default function Sidebar({ activeTab, onTabSelect, onNewNote, counts }: S
       </div>
 
       {/* New Note Button */}
-      <button 
+      <button
         onClick={onNewNote}
         style={{
           width: '100%',
@@ -76,36 +82,90 @@ export default function Sidebar({ activeTab, onTabSelect, onNewNote, counts }: S
       </button>
 
       {/* Navigation */}
-      <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-        <NavItem 
-          icon={<Inbox size={18} />} 
-          label="All notes" 
-          count={counts.all} 
-          isActive={activeTab === 'all'} 
-          onClick={() => onTabSelect('all')} 
+      <nav className="no-scrollbar" style={{ display: 'flex', flexDirection: 'column', gap: '4px', overflowY: 'auto', flex: 1 }}>
+        <NavItem
+          icon={<Inbox size={18} />}
+          label="All notes"
+          count={counts.all}
+          isActive={activeTab === 'all'}
+          onClick={() => onTabSelect('all')}
         />
-        <NavItem 
-          icon={<Star size={18} />} 
-          label="Pinned" 
-          count={counts.pinned} 
-          isActive={activeTab === 'pinned'} 
-          onClick={() => onTabSelect('pinned')} 
+        <NavItem
+          icon={<Star size={18} />}
+          label="Pinned"
+          count={counts.pinned}
+          isActive={activeTab === 'pinned'}
+          onClick={() => onTabSelect('pinned')}
         />
-        
-        <div style={{ marginTop: '24px', marginBottom: '8px', padding: '0 12px' }}>
-          <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.5px', color: '#8A8581', textTransform: 'uppercase' }}>TAGS</span>
+
+        <div>
+          {fixedNav.map(navItem => (
+            <NavItem
+              key={navItem}
+              icon={<Tag size={16} />}
+              label={navItem}
+              count={counts.tags[navItem] || counts.tags[navItem.toLowerCase()] || 0}
+              isActive={activeTab === navItem.toLowerCase()}
+              onClick={() => onTabSelect(navItem.toLowerCase())}
+            />
+          ))}
         </div>
-        
-        {tags.map(tag => (
-          <NavItem 
+
+        {/* Tags Header & Search */}
+        <div style={{ 
+          marginTop: '24px', 
+          marginBottom: '8px', 
+          padding: '0 12px', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between'
+        }}>
+          <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.5px', color: '#8A8581', textTransform: 'uppercase' }}>TAGS</span>
+          
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '4px',
+            backgroundColor: 'transparent',
+            borderRadius: '4px',
+            padding: '2px 6px',
+            width: '100px',
+            border: '1px solid rgba(255, 255, 255, 0.05)'
+          }}>
+            <Search size={12} color="#8A8581" />
+            <input 
+              type="text"
+              placeholder="Search..."
+              value={tagSearchQuery}
+              onChange={(e) => setTagSearchQuery(e.target.value)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                outline: 'none',
+                color: 'var(--text-sidebar)',
+                fontSize: '11px',
+                width: '100%'
+              }}
+            />
+          </div>
+        </div>
+
+        {dynamicTags.map(tag => (
+          <NavItem
             key={tag}
-            icon={<Tag size={16} />} 
-            label={tag} 
-            count={counts.tags[tag] || 0} 
-            isActive={activeTab === tag.toLowerCase()} 
-            onClick={() => onTabSelect(tag.toLowerCase())} 
+            icon={<Tag size={16} />}
+            label={`#${tag.toLowerCase()}`}
+            count={counts.tags[tag] || 0}
+            isActive={activeTab === tag.toLowerCase()}
+            onClick={() => onTabSelect(tag.toLowerCase())}
           />
         ))}
+        
+        {tagSearchQuery && dynamicTags.length === 0 && (
+          <div style={{ padding: '8px 12px', fontSize: '12px', color: '#8A8581', fontStyle: 'italic' }}>
+            No tags found.
+          </div>
+        )}
       </nav>
     </div>
   );
@@ -113,7 +173,7 @@ export default function Sidebar({ activeTab, onTabSelect, onNewNote, counts }: S
 
 function NavItem({ icon, label, count, isActive, onClick }: { icon: React.ReactNode, label: string, count: number, isActive: boolean, onClick: () => void }) {
   return (
-    <div 
+    <div
       className="sidebar-item"
       onClick={onClick}
       style={{
@@ -128,8 +188,12 @@ function NavItem({ icon, label, count, isActive, onClick }: { icon: React.ReactN
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', fontWeight: isActive ? 500 : 400 }}>
-        {icon}
-        {label}
+        <span style={{ color: isActive ? '#E39455' : 'inherit', display: 'flex', alignItems: 'center' }}>
+          {icon}
+        </span>
+        <span style={{ color: isActive ? 'var(--text-sidebar-active)' : 'inherit' }}>
+          {label}
+        </span>
       </div>
       <span style={{ fontSize: '13px', opacity: 0.6 }}>{count}</span>
     </div>
