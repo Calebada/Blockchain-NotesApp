@@ -1,26 +1,103 @@
-import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
-import { Blocks, CheckCircle2, DatabaseZap, Hash, Loader2, Plus, RadioTower, ShieldCheck } from "lucide-react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { addNote, fetchChain, getApiError } from "./api/blockchainApi";
-import { styles } from "./styles";
 import type { BlockfrostProvider, CardanoBlock, ChainBlock } from "./types/blockchain";
-import { shortenHash } from "./utils/hash";
+import Sidebar from "./components/Sidebar";
+import MainArea from "./components/MainArea";
+import NoteModal from "./components/NoteModal";
+
+// Extend ChainBlock internally to include our UI state
+interface UINote {
+  hash: string;
+  author: string;
+  content: string;
+  timestamp: string | number;
+  tag?: string;
+  isPinned?: boolean;
+}
 
 export default function App() {
-  const [author, setAuthor] = useState("");
-  const [content, setContent] = useState("");
   const [chain, setChain] = useState<ChainBlock[]>([]);
   const [provider, setProvider] = useState<BlockfrostProvider | null>(null);
   const [latestBlock, setLatestBlock] = useState<CardanoBlock | null>(null);
   const [isValid, setIsValid] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState("");
+  const [globalError, setGlobalError] = useState("");
 
-  const sortedBlocks = useMemo(() => [...chain].reverse(), [chain]);
+  const [activeTab, setActiveTab] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [modalError, setModalError] = useState("");
+
+  // Convert chain blocks to UI notes (and mock some tags/pins for the UI demo)
+  const allNotes: UINote[] = useMemo(() => {
+    return [...chain].reverse().map((block, index) => {
+      // Mock tags based on hash to keep it consistent
+      const tags = ['General', 'Ideas', 'Personal', 'Work'];
+      const tagIndex = block.hash ? block.hash.charCodeAt(0) % tags.length : 0;
+      
+      return {
+        hash: block.hash,
+        author: block.note.author,
+        content: block.note.content,
+        timestamp: block.timestamp,
+        tag: tags[tagIndex],
+        isPinned: index === 0 || index === 2 // Just pin a couple for demo purposes
+      };
+    });
+  }, [chain]);
+
+  // Filter notes based on active tab and search
+  const filteredNotes = useMemo(() => {
+    let result = allNotes;
+    
+    // Filter by tab
+    if (activeTab === 'pinned') {
+      result = result.filter(n => n.isPinned);
+    } else if (activeTab !== 'all') {
+      // Tab is a tag
+      result = result.filter(n => n.tag?.toLowerCase() === activeTab);
+    }
+    
+    // Filter by search
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(n => 
+        n.content.toLowerCase().includes(q) || 
+        (n.tag && n.tag.toLowerCase().includes(q))
+      );
+    }
+    
+    return result;
+  }, [allNotes, activeTab, searchQuery]);
+
+  // Calculate counts for sidebar
+  const counts = useMemo(() => {
+    const tagsCount: Record<string, number> = {};
+    allNotes.forEach(n => {
+      if (n.tag) {
+        tagsCount[n.tag] = (tagsCount[n.tag] || 0) + 1;
+      }
+    });
+
+    return {
+      all: allNotes.length,
+      pinned: allNotes.filter(n => n.isPinned).length,
+      tags: tagsCount
+    };
+  }, [allNotes]);
+
+  // Determine Title for MainArea
+  const mainTitle = useMemo(() => {
+    if (activeTab === 'all') return 'All notes';
+    if (activeTab === 'pinned') return 'Pinned notes';
+    return `#${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}`;
+  }, [activeTab]);
+
 
   async function loadChain() {
-    setError("");
-
+    setGlobalError("");
     try {
       const chainState = await fetchChain();
       setChain(chainState.chain);
@@ -28,7 +105,7 @@ export default function App() {
       setLatestBlock(chainState.latestBlock);
       setIsValid(chainState.valid);
     } catch (requestError) {
-      setError(
+      setGlobalError(
         getApiError(
           requestError,
           "Unable to reach the backend. Start the API on port 5000 and configure Blockfrost."
@@ -39,189 +116,87 @@ export default function App() {
     }
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  useEffect(() => {
+    loadChain();
+  }, []);
 
-    if (!content.trim()) {
-      setError("Write a note before anchoring it.");
-      return;
-    }
-
+  async function handleSaveNote(content: string, tag: string) {
     setIsSubmitting(true);
-    setError("");
+    setModalError("");
 
     try {
+      // Since our current backend doesn't support tags/edits, we just add a new note
+      // If we are "editing", we could potentially send a request to update, but the 
+      // blockchain API (chain of blocks) is immutable in this demo.
+      // We will just create a new note for the demo.
       await addNote({
-        author: author.trim() || "anonymous",
+        author: "Me", // Hardcoded for this UI demo
         content: content.trim(),
       });
 
-      setContent("");
       await loadChain();
+      setIsModalOpen(false);
+      setEditingNoteId(null);
     } catch (requestError) {
-      setError(getApiError(requestError, "The note could not be anchored. Check Blockfrost and try again."));
+      setModalError(getApiError(requestError, "The note could not be saved."));
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  useEffect(() => {
-    loadChain();
-  }, []);
+  function handleOpenNewNote() {
+    setEditingNoteId(null);
+    setIsModalOpen(true);
+  }
+
+  function handleOpenEditNote(id: string) {
+    setEditingNoteId(id);
+    setIsModalOpen(true);
+  }
+  
+  const editingNote = editingNoteId ? allNotes.find(n => n.hash === editingNoteId) : undefined;
 
   return (
-    <main style={styles.page}>
-      <section style={styles.shell}>
-        <header style={styles.header}>
-          <div>
-            <p style={styles.eyebrow}>Blockfrost Cardano provider</p>
-            <h1 style={styles.title}>Blockchain Notes</h1>
-            <p style={styles.subtitle}>
-              Hash notes locally and anchor each record to the latest Cardano block returned by Blockfrost.
-            </p>
+    <div style={{ display: 'flex' }}>
+      <Sidebar 
+        activeTab={activeTab} 
+        onTabSelect={setActiveTab} 
+        onNewNote={handleOpenNewNote}
+        counts={counts}
+      />
+      
+      <div style={{ flex: 1 }}>
+        {globalError && (
+          <div style={{ padding: '16px 56px', backgroundColor: '#FEE2E2', color: '#991B1B', fontWeight: 500 }}>
+            {globalError}
           </div>
-          <div style={styles.statusGrid}>
-            <StatusPill
-              icon={<RadioTower size={20} />}
-              label={provider?.network ? `${provider.network} network` : "Network pending"}
-              value={provider?.configured ? "Blockfrost ready" : "Needs project_id"}
-            />
-            <StatusPill
-              icon={<ShieldCheck size={20} />}
-              label={isValid ? "Ledger valid" : "Ledger warning"}
-              value={`${chain.length} anchored notes`}
-            />
+        )}
+        
+        {isLoading ? (
+          <div style={{ marginLeft: '260px', padding: '64px', textAlign: 'center', color: 'var(--text-muted)' }}>
+            Loading notes...
           </div>
-        </header>
-
-        <section style={styles.chainBand}>
-          <div style={styles.chainBandTitle}>
-            <DatabaseZap size={20} />
-            <h2>Latest Cardano block</h2>
-          </div>
-          {latestBlock ? (
-            <div style={styles.chainStats}>
-              <Metric label="Height" value={latestBlock.height.toLocaleString()} />
-              <Metric label="Epoch" value={latestBlock.epoch.toLocaleString()} />
-              <Metric label="Slot" value={latestBlock.slot.toLocaleString()} />
-              <Metric label="Transactions" value={latestBlock.txCount.toLocaleString()} />
-              <div style={styles.wideMetric}>
-                <span>Block hash</span>
-                <code title={latestBlock.hash}>{shortenHash(latestBlock.hash)}</code>
-              </div>
-            </div>
-          ) : (
-            <div style={styles.emptyState}>
-              {isLoading ? "Loading Cardano block state..." : "Blockfrost block state is unavailable."}
-            </div>
-          )}
-        </section>
-
-        <section style={styles.grid}>
-          <form onSubmit={handleSubmit} style={styles.panel}>
-            <div style={styles.panelTitle}>
-              <Plus size={20} />
-              <h2>Add anchored note</h2>
-            </div>
-
-            <label style={styles.label}>
-              Author
-              <input
-                value={author}
-                onChange={(event) => setAuthor(event.target.value)}
-                placeholder="anonymous"
-                style={styles.input}
-              />
-            </label>
-
-            <label style={styles.label}>
-              Note
-              <textarea
-                value={content}
-                onChange={(event) => setContent(event.target.value)}
-                placeholder="Write something worth anchoring..."
-                rows={7}
-                style={{ ...styles.input, ...styles.textarea }}
-              />
-            </label>
-
-            {error && <p style={styles.error}>{error}</p>}
-
-            <button disabled={isSubmitting} style={styles.button}>
-              {isSubmitting ? <Loader2 size={18} /> : <CheckCircle2 size={18} />}
-              {isSubmitting ? "Anchoring..." : "Anchor note"}
-            </button>
-          </form>
-
-          <section style={styles.panel}>
-            <div style={styles.panelTitle}>
-              <Blocks size={20} />
-              <h2>Anchored notes</h2>
-            </div>
-
-            {isLoading ? (
-              <div style={styles.emptyState}>Loading notes...</div>
-            ) : sortedBlocks.length === 0 ? (
-              <div style={styles.emptyState}>No notes yet. Add the first note to anchor it to Cardano.</div>
-            ) : (
-              <div style={styles.blockList}>
-                {sortedBlocks.map((block) => (
-                  <article key={block.hash} style={styles.blockCard}>
-                    <div style={styles.blockTopline}>
-                      <span style={styles.blockIndex}>Note #{block.index}</span>
-                      <span>{new Date(block.timestamp).toLocaleString()}</span>
-                    </div>
-                    <p style={styles.note}>{block.note.content}</p>
-                    <p style={styles.author}>By {block.note.author}</p>
-                    <div style={styles.anchorSummary}>
-                      <span>Anchored at Cardano block {block.anchor.blockHeight.toLocaleString()}</span>
-                      <span>{block.anchor.network}</span>
-                    </div>
-                    <div style={styles.hashRows}>
-                      <HashRow label="Anchor" value={block.anchor.blockHash} />
-                      <HashRow label="Note hash" value={block.hash} />
-                      <HashRow label="Previous" value={block.previousHash} />
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )}
-          </section>
-        </section>
-      </section>
-    </main>
-  );
-}
-
-function StatusPill({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
-  return (
-    <div style={styles.statusCard}>
-      {icon}
-      <div>
-        <strong>{label}</strong>
-        <span>{value}</span>
+        ) : (
+          <MainArea 
+            title={mainTitle}
+            notes={filteredNotes}
+            onSearch={setSearchQuery}
+            onNewNote={handleOpenNewNote}
+            onEditNote={handleOpenEditNote}
+          />
+        )}
       </div>
-    </div>
-  );
-}
 
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={styles.metric}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
-}
-
-function HashRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={styles.hashRow}>
-      <span style={styles.hashLabel}>
-        <Hash size={14} />
-        {label}
-      </span>
-      <code title={value}>{shortenHash(value)}</code>
+      {isModalOpen && (
+        <NoteModal 
+          initialContent={editingNote?.content}
+          initialTag={editingNote?.tag}
+          isSubmitting={isSubmitting}
+          error={modalError}
+          onSave={handleSaveNote}
+          onClose={() => { setIsModalOpen(false); setEditingNoteId(null); }}
+        />
+      )}
     </div>
   );
 }
