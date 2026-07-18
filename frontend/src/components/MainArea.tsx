@@ -6,6 +6,7 @@ interface Note {
   hash: string;
   author: string;
   content: string;
+  title?: string;
   timestamp: string | number;
   tag?: string;
   isPinned?: boolean;

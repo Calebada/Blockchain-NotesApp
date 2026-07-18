@@ -232,8 +232,9 @@ export default function App() {
 
       {isModalOpen && (
         <NoteModal 
+          initialTitle={editingNote?.title}
           initialContent={editingNote?.content}
-          initialTag={editingNote?.tag}
+          initialSelectedTag={editingNote?.tag}
           isSubmitting={isSubmitting}
           error={modalError}
           onSave={handleSaveNote}
