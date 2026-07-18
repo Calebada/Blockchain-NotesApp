@@ -2,6 +2,51 @@ const { createNoteBlock, isNoteBlockValid } = require("../entities/note-block");
 const { BlockfrostClient } = require("./blockfrost-client");
 const { createNoteStore } = require("./note-store");
 
+function logBlockTransaction(action, block) {
+  console.log("\n=== Block Transaction ===");
+  console.log(`Action: ${action}`);
+  console.log(`Block #${block.index}`);
+  console.log(`Block ID: ${block.id || "pending"}`);
+  console.log(`Block hash: ${block.hash}`);
+  console.log(`Previous hash: ${block.previousHash}`);
+
+  console.log("Transaction:");
+  console.table([
+    {
+      action,
+      blockIndex: block.index,
+      transactionId: block.hash,
+      author: block.note.author,
+      title: block.note.title || "Untitled",
+      tag: block.note.tag || "General",
+      content: block.note.content,
+      securedAt: block.note.securedAt,
+    },
+  ]);
+
+  console.log("Cardano anchor:");
+  console.table([
+    {
+      provider: block.anchor.provider,
+      network: block.anchor.network,
+      blockHash: block.anchor.blockHash,
+      blockHeight: block.anchor.blockHeight,
+      slot: block.anchor.slot,
+      epoch: block.anchor.epoch,
+      transactionsInAnchorBlock: block.anchor.txCount,
+      blockTime: block.anchor.blockTime,
+    },
+  ]);
+
+  console.log("=========================\n");
+}
+
+function logNoteTransaction(action, details) {
+  console.log("\n=== Note Transaction ===");
+  console.table([{ action, ...details }]);
+  console.log("========================\n");
+}
+
 class NotesLedger {
   constructor(options = {}) {
     this.client = options.client || new BlockfrostClient(options.config);
@@ -76,6 +121,7 @@ class NotesLedger {
 
     const savedBlock = await this.store.saveNoteBlock(block);
     this.chain.push(savedBlock);
+    logBlockTransaction("CREATE_NOTE", savedBlock);
     return savedBlock;
   }
 
@@ -90,7 +136,13 @@ class NotesLedger {
     }
 
     const chain = await this.loadChain(latestBlock);
-    return chain.find((block) => String(block.id) === String(id)) || null;
+    const block = chain.find((chainBlock) => String(chainBlock.id) === String(id)) || null;
+
+    if (block) {
+      logBlockTransaction("UPDATE_NOTE", block);
+    }
+
+    return block;
   }
 
   async deleteNote(id) {
@@ -104,6 +156,10 @@ class NotesLedger {
     }
 
     await this.loadChain(latestBlock);
+    logNoteTransaction("DELETE_NOTE", {
+      noteId: String(id),
+      deletedAt: deletedRow.deletedAt || deletedRow.deleted_at || new Date().toISOString(),
+    });
     return deletedRow;
   }
 
@@ -118,7 +174,13 @@ class NotesLedger {
     }
 
     const chain = await this.loadChain(latestBlock);
-    return chain.find((block) => String(block.id) === String(id)) || null;
+    const block = chain.find((chainBlock) => String(chainBlock.id) === String(id)) || null;
+
+    if (block) {
+      logBlockTransaction("RESTORE_NOTE", block);
+    }
+
+    return block;
   }
 
   async hardDeleteNote(id) {
@@ -132,6 +194,9 @@ class NotesLedger {
     }
 
     await this.loadChain(latestBlock);
+    logNoteTransaction("PERMANENT_DELETE_NOTE", {
+      noteId: String(id),
+    });
     return deletedRow;
   }
 
