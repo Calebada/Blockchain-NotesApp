@@ -1,15 +1,12 @@
 import React, { useState } from 'react';
 import { PenSquare, Plus, Inbox, Star, Tag, Search } from 'lucide-react';
+import type { NoteCounts } from '../types/blockchain';
 
 interface SidebarProps {
   activeTab: string;
   onTabSelect: (tab: string) => void;
   onNewNote: () => void;
-  counts: {
-    all: number;
-    pinned: number;
-    tags: Record<string, number>;
-  };
+  counts: NoteCounts;
 }
 
 export default function Sidebar({ activeTab, onTabSelect, onNewNote, counts }: SidebarProps) {

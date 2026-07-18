@@ -2,15 +2,15 @@ import React, { useState } from 'react';
 import { PenLine, Pin, PinOff, Trash2 } from 'lucide-react';
 
 interface NoteCardProps {
-  id: string;
+  id?: string;
   title: string;
   content: string;
   timestamp: string;
   tag?: string;
   isPinned?: boolean;
   onEdit: (id: string) => void;
-  onDelete?: (id: string) => void;
-  onTogglePin?: (id: string) => void;
+  onDelete?: (id?: string) => void;
+  onTogglePin?: () => void;
 }
 
 export default function NoteCard({ id, title, content, timestamp, tag, isPinned, onEdit, onDelete, onTogglePin }: NoteCardProps) {
@@ -60,7 +60,7 @@ export default function NoteCard({ id, title, content, timestamp, tag, isPinned,
         </div>
 
         <button
-          onClick={() => onTogglePin && onTogglePin(id)}
+          onClick={() => onTogglePin && onTogglePin()}
           style={{
             background: isPinned ? '#FCEADB' : 'transparent',
             color: isPinned ? '#2A2A2A' : '#C6B5A1',
@@ -109,7 +109,9 @@ export default function NoteCard({ id, title, content, timestamp, tag, isPinned,
         alignItems: 'center'
       }}>
         <button
-          onClick={() => onEdit(id)}
+          onClick={() => id && onEdit(id)}
+          disabled={!id}
+          title={id ? "Edit note" : "Restart the backend server to edit this note"}
           style={{
             background: 'none',
             border: 'none',
@@ -120,7 +122,8 @@ export default function NoteCard({ id, title, content, timestamp, tag, isPinned,
             color: 'var(--text-muted)',
             fontSize: '13px',
             fontWeight: 500,
-            cursor: 'pointer'
+            cursor: id ? 'pointer' : 'not-allowed',
+            opacity: id ? 1 : 0.55
           }}
           onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-main)'}
           onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}

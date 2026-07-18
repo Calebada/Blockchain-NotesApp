@@ -119,6 +119,8 @@ Available endpoints:
 
 - `GET /api/chain` - fetch local anchored notes plus the latest Cardano block from Blockfrost
 - `POST /api/notes` - add a note with JSON body `{ "author": "Ada", "content": "My secured note" }`
+- `PUT /api/notes/:id` - edit a note with JSON body `{ "author": "Ada", "content": "Updated note" }`
+- `DELETE /api/notes/:id` - delete a note and recalculate the local proof chain
 - `GET /api/health` - check API and provider configuration
 
 ## Frontend Setup

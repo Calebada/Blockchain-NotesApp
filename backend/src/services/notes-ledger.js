@@ -66,6 +66,34 @@ class NotesLedger {
     return savedBlock;
   }
 
+  async updateNote(id, { author, content }) {
+    const latestBlock = await this.getLatestCardanoBlock();
+    const updatedRow = await this.store.updateNoteBlock(id, { author, content });
+
+    if (!updatedRow) {
+      const error = new Error("Note not found.");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const chain = await this.loadChain(latestBlock);
+    return chain.find((block) => String(block.id) === String(id)) || null;
+  }
+
+  async deleteNote(id) {
+    const latestBlock = await this.getLatestCardanoBlock();
+    const deletedRow = await this.store.deleteNoteBlock(id);
+
+    if (!deletedRow) {
+      const error = new Error("Note not found.");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    await this.loadChain(latestBlock);
+    return deletedRow;
+  }
+
   async getState() {
     const latestBlock = await this.getLatestCardanoBlock();
     const chain = await this.loadChain(latestBlock);

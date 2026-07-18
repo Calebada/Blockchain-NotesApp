@@ -1,24 +1,15 @@
 import React from 'react';
 import { Search, Plus } from 'lucide-react';
+import type { FrontendNote } from '../types/blockchain';
 import NoteCard from './NoteCard';
-
-interface Note {
-  hash: string;
-  author: string;
-  content: string;
-  title?: string;
-  timestamp: string | number;
-  tag?: string;
-  isPinned?: boolean;
-}
 
 interface MainAreaProps {
   title: string;
-  notes: Note[];
+  notes: FrontendNote[];
   onSearch: (query: string) => void;
   onNewNote: () => void;
   onEditNote: (id: string) => void;
-  onDeleteNote?: (id: string) => void;
+  onDeleteNote?: (id?: string) => void;
   onTogglePin?: (id: string) => void;
 }
 
@@ -137,16 +128,16 @@ export default function MainArea({ title, notes, onSearch, onNewNote, onEditNote
 
             return (
               <NoteCard
-                key={note.hash}
-                id={note.hash}
+                key={note.id || note.hash}
+                id={note.id}
                 title={title}
                 content={contentPreview}
                 timestamp={formattedTime}
-                tag={note.tag || 'General'}
+                tag={note.tag}
                 isPinned={note.isPinned}
                 onEdit={onEditNote}
                 onDelete={onDeleteNote}
-                onTogglePin={onTogglePin}
+                onTogglePin={() => onTogglePin && onTogglePin(note.pinKey)}
               />
             );
           })}

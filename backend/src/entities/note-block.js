@@ -12,8 +12,9 @@ function hashNoteBlock(block) {
   return crypto.createHash("sha256").update(blockData).digest("hex");
 }
 
-function createNoteBlock({ index, author, content, previousHash, anchor }) {
+function createNoteBlock({ id, index, author, content, previousHash, anchor }) {
   const block = {
+    id,
     index,
     timestamp: new Date().toISOString(),
     note: {

@@ -20,6 +20,7 @@ function createTemporaryNoteBlocks(rows, { latestBlock, network }) {
   return rows.map((row, index) => {
     const timestamp = row.created_at;
     const block = {
+      id: String(row.id),
       index: index + 1,
       timestamp,
       note: {
@@ -87,13 +88,53 @@ class SupabaseNoteStore {
   }
 
   async saveNoteBlock(block) {
-    const { error } = await this.client.from(this.tableName).insert(toDatabaseRow(block));
+    const { data, error } = await this.client
+      .from(this.tableName)
+      .insert(toDatabaseRow(block))
+      .select("id")
+      .single();
 
     if (error) {
       throw createStoreError("Unable to save note to Supabase", error);
     }
 
-    return block;
+    return {
+      ...block,
+      id: String(data.id),
+    };
+  }
+
+  async updateNoteBlock(id, updates) {
+    const { data, error } = await this.client
+      .from(this.tableName)
+      .update({
+        author: updates.author,
+        content: updates.content,
+      })
+      .eq("id", id)
+      .select("id,author,content,created_at")
+      .maybeSingle();
+
+    if (error) {
+      throw createStoreError("Unable to update note in Supabase", error);
+    }
+
+    return data;
+  }
+
+  async deleteNoteBlock(id) {
+    const { data, error } = await this.client
+      .from(this.tableName)
+      .delete()
+      .eq("id", id)
+      .select("id")
+      .maybeSingle();
+
+    if (error) {
+      throw createStoreError("Unable to delete note from Supabase", error);
+    }
+
+    return data;
   }
 }
 
