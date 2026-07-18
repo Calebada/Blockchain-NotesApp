@@ -1,26 +1,49 @@
 const { createClient } = require("@supabase/supabase-js");
 const { createSupabaseConfig } = require("../config/supabase-config");
+const { hashNoteBlock } = require("../entities/note-block");
 
 function toDatabaseRow(block) {
   return {
-    block_index: block.index,
-    timestamp: block.timestamp,
-    note: block.note,
-    previous_hash: block.previousHash,
-    hash: block.hash,
-    anchor: block.anchor,
+    author: block.note.author,
+    content: block.note.content,
+    created_at: block.note.securedAt || block.timestamp,
   };
 }
 
-function fromDatabaseRow(row) {
-  return {
-    index: row.block_index,
-    timestamp: row.timestamp,
-    note: row.note,
-    previousHash: row.previous_hash,
-    hash: row.hash,
-    anchor: row.anchor,
-  };
+function createTemporaryNoteBlocks(rows, { latestBlock, network }) {
+  if (!latestBlock) {
+    return [];
+  }
+
+  let previousHash = latestBlock.hash;
+
+  return rows.map((row, index) => {
+    const timestamp = row.created_at;
+    const block = {
+      index: index + 1,
+      timestamp,
+      note: {
+        author: row.author || "anonymous",
+        content: row.content,
+        securedAt: timestamp,
+      },
+      previousHash,
+      anchor: {
+        provider: "blockfrost",
+        network,
+        blockHash: latestBlock.hash,
+        blockHeight: latestBlock.height,
+        slot: latestBlock.slot,
+        epoch: latestBlock.epoch,
+        txCount: latestBlock.txCount,
+        blockTime: latestBlock.time,
+      },
+    };
+
+    block.hash = hashNoteBlock(block);
+    previousHash = block.hash;
+    return block;
+  });
 }
 
 function createStoreError(message, error) {
@@ -49,31 +72,28 @@ class SupabaseNoteStore {
     };
   }
 
-  async listNoteBlocks() {
+  async listNoteBlocks(options = {}) {
     const { data, error } = await this.client
       .from(this.tableName)
-      .select("block_index,timestamp,note,previous_hash,hash,anchor")
-      .order("block_index", { ascending: true });
+      .select("id,author,content,created_at")
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true });
 
     if (error) {
       throw createStoreError("Unable to load notes from Supabase", error);
     }
 
-    return data.map(fromDatabaseRow);
+    return createTemporaryNoteBlocks(data, options);
   }
 
   async saveNoteBlock(block) {
-    const { data, error } = await this.client
-      .from(this.tableName)
-      .insert(toDatabaseRow(block))
-      .select("block_index,timestamp,note,previous_hash,hash,anchor")
-      .single();
+    const { error } = await this.client.from(this.tableName).insert(toDatabaseRow(block));
 
     if (error) {
       throw createStoreError("Unable to save note to Supabase", error);
     }
 
-    return fromDatabaseRow(data);
+    return block;
   }
 }
 

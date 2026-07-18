@@ -31,15 +31,18 @@ class NotesLedger {
     };
   }
 
-  async loadChain() {
-    this.chain = await this.store.listNoteBlocks();
+  async loadChain(latestBlock) {
+    this.chain = await this.store.listNoteBlocks({
+      latestBlock,
+      network: this.client.network,
+    });
     return this.chain;
   }
 
   async addNote({ author, content }) {
-    await this.loadChain();
-
     const latestBlock = await this.getLatestCardanoBlock();
+    await this.loadChain(latestBlock);
+
     const previousHash = this.chain.length > 0 ? this.chain[this.chain.length - 1].hash : latestBlock.hash;
     const block = createNoteBlock({
       index: this.chain.length + 1,
@@ -64,12 +67,13 @@ class NotesLedger {
   }
 
   async getState() {
-    const chain = await this.loadChain();
+    const latestBlock = await this.getLatestCardanoBlock();
+    const chain = await this.loadChain(latestBlock);
 
     return {
       valid: this.isChainValid(chain),
       provider: this.provider,
-      latestBlock: await this.getLatestCardanoBlock(),
+      latestBlock,
       length: chain.length,
       chain,
     };
