@@ -1,9 +1,15 @@
-import type { ChainBlock, FrontendNote, NoteContent } from "../types/blockchain";
+import { NOTE_TAG_OPTIONS } from "../types/blockchain";
+import type { ChainBlock, FrontendNote, NoteContent, NoteTag } from "../types/blockchain";
 
 export const DEFAULT_NOTE_TAG = "General";
 
-function normalizeTag(tag: unknown) {
-  return typeof tag === "string" && tag.trim() ? tag.trim() : DEFAULT_NOTE_TAG;
+function normalizeTag(tag: unknown): NoteTag {
+  if (typeof tag !== "string") {
+    return DEFAULT_NOTE_TAG;
+  }
+
+  const matchedTag = NOTE_TAG_OPTIONS.find((option) => option.toLowerCase() === tag.trim().toLowerCase());
+  return matchedTag || DEFAULT_NOTE_TAG;
 }
 
 function normalizeTitle(title: unknown) {
@@ -45,7 +51,13 @@ export function serializeNoteContent(note: NoteContent) {
 }
 
 export function toFrontendNote(block: ChainBlock, pinnedNoteIds: ReadonlySet<string>): FrontendNote {
-  const noteContent = parseNoteContent(block.note.content);
+  const noteContent = block.note.title || block.note.tag
+    ? {
+        title: block.note.title || "",
+        tag: normalizeTag(block.note.tag),
+        content: block.note.content,
+      }
+    : parseNoteContent(block.note.content);
   const pinKey = block.id || block.hash;
 
   return {
@@ -54,6 +66,7 @@ export function toFrontendNote(block: ChainBlock, pinnedNoteIds: ReadonlySet<str
     hash: block.hash,
     author: block.note.author,
     timestamp: block.timestamp,
+    deletedAt: block.deletedAt,
     isPinned: pinnedNoteIds.has(pinKey),
     ...noteContent,
   };

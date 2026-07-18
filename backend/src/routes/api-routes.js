@@ -3,8 +3,26 @@ const express = require("express");
 function createApiRouter(notesLedger) {
   const router = express.Router();
 
+  function parseStoredNoteContent(content) {
+    try {
+      const parsed = JSON.parse(content);
+
+      if (parsed && typeof parsed === "object" && typeof parsed.content === "string") {
+        return {
+          title: typeof parsed.title === "string" ? parsed.title.trim() : "",
+          tag: typeof parsed.tag === "string" && parsed.tag.trim() ? parsed.tag.trim() : "General",
+          content: parsed.content.trim(),
+        };
+      }
+    } catch {
+      return null;
+    }
+
+    return null;
+  }
+
   function parseNotePayload(req, res) {
-    const { author, content } = req.body;
+    const { author, title, tag, content } = req.body;
 
     if (!content || typeof content !== "string" || !content.trim()) {
       res.status(400).json({
@@ -13,9 +31,13 @@ function createApiRouter(notesLedger) {
       return null;
     }
 
+    const parsedContent = parseStoredNoteContent(content.trim());
+
     return {
       author: typeof author === "string" && author.trim() ? author.trim() : "anonymous",
-      content: content.trim(),
+      title: typeof title === "string" ? title.trim() : parsedContent?.title || "",
+      tag: typeof tag === "string" && tag.trim() ? tag.trim() : parsedContent?.tag || "General",
+      content: parsedContent?.content || content.trim(),
     };
   }
 
@@ -62,6 +84,17 @@ function createApiRouter(notesLedger) {
     }
   });
 
+  router.get("/notes/trash", async (req, res) => {
+    try {
+      res.json(await notesLedger.getTrashState());
+    } catch (error) {
+      res.status(error.statusCode || 500).json({
+        error: error.message || "Unable to fetch deleted notes.",
+        provider: notesLedger.provider,
+      });
+    }
+  });
+
   router.put("/notes/:id", async (req, res) => {
     const notePayload = parseNotePayload(req, res);
 
@@ -86,12 +119,47 @@ function createApiRouter(notesLedger) {
     }
   });
 
+  router.post("/notes/:id/restore", async (req, res) => {
+    try {
+      const block = await notesLedger.restoreNote(req.params.id);
+
+      return res.json({
+        message: "Note restored and the local proof chain was recalculated.",
+        block,
+        valid: notesLedger.isChainValid(),
+        provider: notesLedger.provider,
+      });
+    } catch (error) {
+      return res.status(error.statusCode || 500).json({
+        error: error.message || "The note could not be restored.",
+        provider: notesLedger.provider,
+      });
+    }
+  });
+
+  router.delete("/notes/:id/permanent", async (req, res) => {
+    try {
+      await notesLedger.hardDeleteNote(req.params.id);
+
+      return res.json({
+        message: "Note permanently deleted.",
+        valid: notesLedger.isChainValid(),
+        provider: notesLedger.provider,
+      });
+    } catch (error) {
+      return res.status(error.statusCode || 500).json({
+        error: error.message || "The note could not be permanently deleted.",
+        provider: notesLedger.provider,
+      });
+    }
+  });
+
   router.delete("/notes/:id", async (req, res) => {
     try {
       await notesLedger.deleteNote(req.params.id);
 
       return res.json({
-        message: "Note deleted and the local proof chain was recalculated.",
+        message: "Note moved to trash and the local proof chain was recalculated.",
         valid: notesLedger.isChainValid(),
         provider: notesLedger.provider,
       });

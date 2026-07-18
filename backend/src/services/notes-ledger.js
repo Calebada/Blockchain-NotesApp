@@ -39,7 +39,18 @@ class NotesLedger {
     return this.chain;
   }
 
-  async addNote({ author, content }) {
+  async loadDeletedNotes(latestBlock) {
+    if (!this.store.listDeletedNoteBlocks) {
+      return [];
+    }
+
+    return this.store.listDeletedNoteBlocks({
+      latestBlock,
+      network: this.client.network,
+    });
+  }
+
+  async addNote({ author, title, tag, content }) {
     const latestBlock = await this.getLatestCardanoBlock();
     await this.loadChain(latestBlock);
 
@@ -47,6 +58,8 @@ class NotesLedger {
     const block = createNoteBlock({
       index: this.chain.length + 1,
       author,
+      title,
+      tag,
       content,
       previousHash,
       anchor: {
@@ -66,9 +79,9 @@ class NotesLedger {
     return savedBlock;
   }
 
-  async updateNote(id, { author, content }) {
+  async updateNote(id, { author, title, tag, content }) {
     const latestBlock = await this.getLatestCardanoBlock();
-    const updatedRow = await this.store.updateNoteBlock(id, { author, content });
+    const updatedRow = await this.store.updateNoteBlock(id, { author, title, tag, content });
 
     if (!updatedRow) {
       const error = new Error("Note not found.");
@@ -94,12 +107,53 @@ class NotesLedger {
     return deletedRow;
   }
 
+  async restoreNote(id) {
+    const latestBlock = await this.getLatestCardanoBlock();
+    const restoredRow = await this.store.restoreNoteBlock(id);
+
+    if (!restoredRow) {
+      const error = new Error("Deleted note not found.");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const chain = await this.loadChain(latestBlock);
+    return chain.find((block) => String(block.id) === String(id)) || null;
+  }
+
+  async hardDeleteNote(id) {
+    const latestBlock = await this.getLatestCardanoBlock();
+    const deletedRow = await this.store.hardDeleteNoteBlock(id);
+
+    if (!deletedRow) {
+      const error = new Error("Note not found.");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    await this.loadChain(latestBlock);
+    return deletedRow;
+  }
+
   async getState() {
     const latestBlock = await this.getLatestCardanoBlock();
     const chain = await this.loadChain(latestBlock);
 
     return {
       valid: this.isChainValid(chain),
+      provider: this.provider,
+      latestBlock,
+      length: chain.length,
+      chain,
+    };
+  }
+
+  async getTrashState() {
+    const latestBlock = await this.getLatestCardanoBlock();
+    const chain = await this.loadDeletedNotes(latestBlock);
+
+    return {
+      valid: true,
       provider: this.provider,
       latestBlock,
       length: chain.length,

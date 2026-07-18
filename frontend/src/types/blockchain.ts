@@ -1,5 +1,7 @@
 export type LedgerNote = {
   author: string;
+  title?: string;
+  tag?: NoteTag;
   content: string;
   securedAt?: string;
 };
@@ -41,6 +43,7 @@ export type ChainBlock = {
   id?: string;
   index: number;
   timestamp: string;
+  deletedAt?: string | null;
   note: LedgerNote;
   previousHash: string;
   hash: string;
@@ -55,9 +58,13 @@ export type ChainResponse = {
   chain: ChainBlock[];
 };
 
+export const NOTE_TAG_OPTIONS = ["General", "Work", "Personal", "Ideas"] as const;
+
+export type NoteTag = (typeof NOTE_TAG_OPTIONS)[number];
+
 export type NoteContent = {
   title: string;
-  tag: string;
+  tag: NoteTag;
   content: string;
 };
 
@@ -69,19 +76,20 @@ export type FrontendNote = NoteContent & {
   hash: string;
   author: string;
   timestamp: string;
+  deletedAt?: string | null;
   isPinned: boolean;
 };
 
 export type NoteCounts = {
   all: number;
   pinned: number;
+  trash: number;
   tags: Record<string, number>;
 };
 
 export type CreateNoteRequest = {
   author: string;
-  content: string;
-};
+} & NoteContent;
 
 export type UpdateNoteRequest = CreateNoteRequest & {
   id: string;

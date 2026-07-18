@@ -44,13 +44,18 @@ class MemoryNoteStore {
   }
 
   async listNoteBlocks(options = {}) {
-    return createTemporaryNoteBlocks(this.blocks, options);
+    return createTemporaryNoteBlocks(this.blocks.filter((block) => !block.deletedAt), options);
+  }
+
+  async listDeletedNoteBlocks(options = {}) {
+    return createTemporaryNoteBlocks(this.blocks.filter((block) => block.deletedAt), options);
   }
 
   async saveNoteBlock(block) {
     const blockToSave = {
       ...block,
       id: String(this.nextId),
+      deletedAt: null,
     };
 
     this.nextId += 1;
@@ -59,7 +64,7 @@ class MemoryNoteStore {
   }
 
   async updateNoteBlock(id, updates) {
-    const blockIndex = this.blocks.findIndex((block) => String(block.id) === String(id));
+    const blockIndex = this.blocks.findIndex((block) => String(block.id) === String(id) && !block.deletedAt);
 
     if (blockIndex === -1) {
       return null;
@@ -71,6 +76,8 @@ class MemoryNoteStore {
       note: {
         ...existingBlock.note,
         author: updates.author || existingBlock.note.author,
+        title: updates.title || existingBlock.note.title || "",
+        tag: updates.tag || existingBlock.note.tag || "General",
         content: updates.content,
       },
     };
@@ -80,6 +87,38 @@ class MemoryNoteStore {
   }
 
   async deleteNoteBlock(id) {
+    const blockIndex = this.blocks.findIndex((block) => String(block.id) === String(id) && !block.deletedAt);
+
+    if (blockIndex === -1) {
+      return null;
+    }
+
+    const deletedBlock = {
+      ...this.blocks[blockIndex],
+      deletedAt: new Date().toISOString(),
+    };
+
+    this.blocks[blockIndex] = deletedBlock;
+    return deletedBlock;
+  }
+
+  async restoreNoteBlock(id) {
+    const blockIndex = this.blocks.findIndex((block) => String(block.id) === String(id) && block.deletedAt);
+
+    if (blockIndex === -1) {
+      return null;
+    }
+
+    const restoredBlock = {
+      ...this.blocks[blockIndex],
+      deletedAt: null,
+    };
+
+    this.blocks[blockIndex] = restoredBlock;
+    return restoredBlock;
+  }
+
+  async hardDeleteNoteBlock(id) {
     const blockIndex = this.blocks.findIndex((block) => String(block.id) === String(id));
 
     if (blockIndex === -1) {

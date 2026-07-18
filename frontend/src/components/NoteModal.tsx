@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
-import type { NoteFormValues } from '../types/blockchain';
+import { NOTE_TAG_OPTIONS } from '../types/blockchain';
+import type { NoteFormValues, NoteTag } from '../types/blockchain';
 
 interface NoteModalProps {
   initialValues?: Partial<NoteFormValues>;
@@ -19,7 +20,7 @@ export default function NoteModal({
 }: NoteModalProps) {
   const isEditing = Boolean(initialValues);
   const [title, setTitle] = useState(initialValues?.title || '');
-  const [tag, setTag] = useState(initialValues?.tag || 'General');
+  const [tag, setTag] = useState<NoteTag>(initialValues?.tag || 'General');
   const [content, setContent] = useState(initialValues?.content || '');
 
 
@@ -117,14 +118,19 @@ export default function NoteModal({
 
           <div>
             <label style={getLabelStyle()}>Tag</label>
-            <input
-              type="text"
+            <select
               value={tag}
-              onChange={(e) => setTag(e.target.value)}
+              onChange={(e) => setTag(e.target.value as NoteTag)}
               onFocus={() => setFocusedField('tag')}
               onBlur={() => setFocusedField(null)}
               style={getInputStyle('tag')}
-            />
+            >
+              {NOTE_TAG_OPTIONS.map((tagOption) => (
+                <option key={tagOption} value={tagOption}>
+                  {tagOption}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>

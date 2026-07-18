@@ -1,6 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
-import { addNote, deleteNote, fetchChain, getApiError, updateNote } from "./api/blockchainApi";
-import { serializeNoteContent, toFrontendNote } from "./entities/notes";
+import {
+  addNote,
+  deleteNote,
+  fetchChain,
+  fetchTrash,
+  getApiError,
+  hardDeleteNote,
+  restoreNote,
+  updateNote,
+} from "./api/blockchainApi";
+import { toFrontendNote } from "./entities/notes";
 import type {
   BlockfrostProvider,
   CardanoBlock,
@@ -15,6 +24,7 @@ import NoteModal from "./components/NoteModal";
 
 export default function App() {
   const [chain, setChain] = useState<ChainBlock[]>([]);
+  const [trashChain, setTrashChain] = useState<ChainBlock[]>([]);
   const [provider, setProvider] = useState<BlockfrostProvider | null>(null);
   const [latestBlock, setLatestBlock] = useState<CardanoBlock | null>(null);
   const [isValid, setIsValid] = useState(false);
@@ -35,14 +45,17 @@ export default function App() {
     return [...chain].reverse().map((block) => toFrontendNote(block, pinnedNoteIds));
   }, [chain, pinnedNoteIds]);
 
+  const trashNotes: FrontendNote[] = useMemo(() => {
+    return [...trashChain].map((block) => toFrontendNote(block, pinnedNoteIds));
+  }, [trashChain, pinnedNoteIds]);
 
   const filteredNotes = useMemo(() => {
-    let result = allNotes;
+    let result = activeTab === 'trash' ? trashNotes : allNotes;
     
 
     if (activeTab === 'pinned') {
       result = result.filter(n => n.isPinned);
-    } else if (activeTab !== 'all') {
+    } else if (activeTab !== 'all' && activeTab !== 'trash') {
 
       result = result.filter(n => n.tag?.toLowerCase() === activeTab);
     }
@@ -65,7 +78,7 @@ export default function App() {
     });
     
     return result;
-  }, [allNotes, activeTab, searchQuery]);
+  }, [allNotes, trashNotes, activeTab, searchQuery]);
 
 
   const counts = useMemo(() => {
@@ -77,14 +90,16 @@ export default function App() {
     return {
       all: allNotes.length,
       pinned: allNotes.filter(n => n.isPinned).length,
+      trash: trashNotes.length,
       tags: tagsCount
     };
-  }, [allNotes]);
+  }, [allNotes, trashNotes]);
 
 
   const mainTitle = useMemo(() => {
     if (activeTab === 'all') return 'All notes';
     if (activeTab === 'pinned') return 'Pinned notes';
+    if (activeTab === 'trash') return 'Trash';
     return `#${activeTab.toLowerCase()}`;
   }, [activeTab]);
 
@@ -92,8 +107,9 @@ export default function App() {
   async function loadChain() {
     setGlobalError("");
     try {
-      const chainState = await fetchChain();
+      const [chainState, trashState] = await Promise.all([fetchChain(), fetchTrash()]);
       setChain(chainState.chain);
+      setTrashChain(trashState.chain);
       setProvider(chainState.provider);
       setLatestBlock(chainState.latestBlock);
       setIsValid(chainState.valid);
@@ -118,18 +134,16 @@ export default function App() {
     setModalError("");
 
     try {
-      const notePayload = serializeNoteContent(values);
-
       if (editingNoteId) {
         await updateNote({
           id: editingNoteId,
           author: "Me",
-          content: notePayload,
+          ...values,
         });
       } else {
         await addNote({
           author: "Me",
-          content: notePayload,
+          ...values,
         });
       }
 
@@ -164,7 +178,7 @@ export default function App() {
       return;
     }
 
-    const confirmed = window.confirm("Delete this note?");
+    const confirmed = window.confirm("Move this note to Trash?");
 
     if (!confirmed) {
       return;
@@ -182,6 +196,49 @@ export default function App() {
       await loadChain();
     } catch (requestError) {
       setGlobalError(getApiError(requestError, "The note could not be deleted."));
+    }
+  }
+
+  async function handleRestoreNote(id?: string) {
+    if (!id) {
+      setGlobalError("This note is missing its backend ID. Restart the backend server, reload the app, and try again.");
+      return;
+    }
+
+    setGlobalError("");
+
+    try {
+      await restoreNote(id);
+      await loadChain();
+    } catch (requestError) {
+      setGlobalError(getApiError(requestError, "The note could not be restored."));
+    }
+  }
+
+  async function handleHardDeleteNote(id?: string) {
+    if (!id) {
+      setGlobalError("This note is missing its backend ID. Restart the backend server, reload the app, and try again.");
+      return;
+    }
+
+    const confirmed = window.confirm("Permanently delete this note? This cannot be undone.");
+
+    if (!confirmed) {
+      return;
+    }
+
+    setGlobalError("");
+
+    try {
+      await hardDeleteNote(id);
+      setPinnedNoteIds(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      await loadChain();
+    } catch (requestError) {
+      setGlobalError(getApiError(requestError, "The note could not be permanently deleted."));
     }
   }
   
@@ -223,10 +280,13 @@ export default function App() {
           <MainArea 
             title={mainTitle}
             notes={filteredNotes}
+            isTrash={activeTab === 'trash'}
             onSearch={setSearchQuery}
             onNewNote={handleOpenNewNote}
             onEditNote={handleOpenEditNote}
             onDeleteNote={handleDeleteNote}
+            onRestoreNote={handleRestoreNote}
+            onHardDeleteNote={handleHardDeleteNote}
             onTogglePin={handleTogglePin}
           />
         )}

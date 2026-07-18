@@ -5,8 +5,11 @@ const { hashNoteBlock } = require("../entities/note-block");
 function toDatabaseRow(block) {
   return {
     author: block.note.author,
+    title: block.note.title || "",
+    tag: block.note.tag || "General",
     content: block.note.content,
     created_at: block.note.securedAt || block.timestamp,
+    deleted_at: null,
   };
 }
 
@@ -23,8 +26,11 @@ function createTemporaryNoteBlocks(rows, { latestBlock, network }) {
       id: String(row.id),
       index: index + 1,
       timestamp,
+      deletedAt: row.deleted_at || null,
       note: {
         author: row.author || "anonymous",
+        title: row.title || "",
+        tag: row.tag || "General",
         content: row.content,
         securedAt: timestamp,
       },
@@ -76,12 +82,28 @@ class SupabaseNoteStore {
   async listNoteBlocks(options = {}) {
     const { data, error } = await this.client
       .from(this.tableName)
-      .select("id,author,content,created_at")
+      .select("id,author,title,tag,content,created_at,deleted_at")
+      .is("deleted_at", null)
       .order("created_at", { ascending: true })
       .order("id", { ascending: true });
 
     if (error) {
       throw createStoreError("Unable to load notes from Supabase", error);
+    }
+
+    return createTemporaryNoteBlocks(data, options);
+  }
+
+  async listDeletedNoteBlocks(options = {}) {
+    const { data, error } = await this.client
+      .from(this.tableName)
+      .select("id,author,title,tag,content,created_at,deleted_at")
+      .not("deleted_at", "is", null)
+      .order("deleted_at", { ascending: false })
+      .order("id", { ascending: true });
+
+    if (error) {
+      throw createStoreError("Unable to load deleted notes from Supabase", error);
     }
 
     return createTemporaryNoteBlocks(data, options);
@@ -109,10 +131,13 @@ class SupabaseNoteStore {
       .from(this.tableName)
       .update({
         author: updates.author,
+        title: updates.title,
+        tag: updates.tag,
         content: updates.content,
       })
       .eq("id", id)
-      .select("id,author,content,created_at")
+      .is("deleted_at", null)
+      .select("id,author,title,tag,content,created_at,deleted_at")
       .maybeSingle();
 
     if (error) {
@@ -123,6 +148,39 @@ class SupabaseNoteStore {
   }
 
   async deleteNoteBlock(id) {
+    const deletedAt = new Date().toISOString();
+    const { data, error } = await this.client
+      .from(this.tableName)
+      .update({ deleted_at: deletedAt })
+      .eq("id", id)
+      .is("deleted_at", null)
+      .select("id,deleted_at")
+      .maybeSingle();
+
+    if (error) {
+      throw createStoreError("Unable to delete note from Supabase", error);
+    }
+
+    return data;
+  }
+
+  async restoreNoteBlock(id) {
+    const { data, error } = await this.client
+      .from(this.tableName)
+      .update({ deleted_at: null })
+      .eq("id", id)
+      .not("deleted_at", "is", null)
+      .select("id,author,title,tag,content,created_at,deleted_at")
+      .maybeSingle();
+
+    if (error) {
+      throw createStoreError("Unable to restore note from Supabase", error);
+    }
+
+    return data;
+  }
+
+  async hardDeleteNoteBlock(id) {
     const { data, error } = await this.client
       .from(this.tableName)
       .delete()
@@ -131,7 +189,7 @@ class SupabaseNoteStore {
       .maybeSingle();
 
     if (error) {
-      throw createStoreError("Unable to delete note from Supabase", error);
+      throw createStoreError("Unable to permanently delete note from Supabase", error);
     }
 
     return data;

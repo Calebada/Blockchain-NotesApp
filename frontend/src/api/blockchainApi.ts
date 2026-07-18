@@ -12,9 +12,16 @@ export async function fetchChain() {
   return response.data;
 }
 
-export async function addNote({ author, content }: CreateNoteRequest) {
+export async function fetchTrash() {
+  const response = await axios.get<ChainResponse>(`${API_URL}/notes/trash`);
+  return response.data;
+}
+
+export async function addNote({ author, title, tag, content }: CreateNoteRequest) {
   await axios.post(`${API_URL}/notes`, {
     author,
+    title,
+    tag,
     content,
   });
 }
@@ -22,6 +29,8 @@ export async function addNote({ author, content }: CreateNoteRequest) {
 export async function updateNote({
   id,
   author,
+  title,
+  tag,
   content,
 }: UpdateNoteRequest) {
   if (!id) {
@@ -30,6 +39,8 @@ export async function updateNote({
 
   await axios.put(`${API_URL}/notes/${id}`, {
     author,
+    title,
+    tag,
     content,
   });
 }
@@ -40,6 +51,22 @@ export async function deleteNote(id?: string) {
   }
 
   await axios.delete(`${API_URL}/notes/${id}`);
+}
+
+export async function restoreNote(id?: string) {
+  if (!id) {
+    throw new Error("A backend note ID is required to restore this note.");
+  }
+
+  await axios.post(`${API_URL}/notes/${id}/restore`);
+}
+
+export async function hardDeleteNote(id?: string) {
+  if (!id) {
+    throw new Error("A backend note ID is required to permanently delete this note.");
+  }
+
+  await axios.delete(`${API_URL}/notes/${id}/permanent`);
 }
 
 export function getApiError(error: unknown, fallback: string) {
