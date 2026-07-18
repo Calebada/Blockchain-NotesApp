@@ -34,7 +34,7 @@ export default function Sidebar({ activeTab, onTabSelect, onNewNote, counts }: S
       left: 0,
       top: 0
     }}>
-      {/* Logo Area */}
+
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px', padding: '0 8px' }}>
         <div style={{
           width: '36px',
@@ -54,7 +54,7 @@ export default function Sidebar({ activeTab, onTabSelect, onNewNote, counts }: S
         </div>
       </div>
 
-      {/* New Note Button */}
+
       <button
         onClick={onNewNote}
         style={{
@@ -81,7 +81,7 @@ export default function Sidebar({ activeTab, onTabSelect, onNewNote, counts }: S
         New note
       </button>
 
-      {/* Navigation */}
+
       <nav className="no-scrollbar" style={{ display: 'flex', flexDirection: 'column', gap: '4px', overflowY: 'auto', flex: 1 }}>
         <NavItem
           icon={<Inbox size={18} />}
@@ -111,7 +111,7 @@ export default function Sidebar({ activeTab, onTabSelect, onNewNote, counts }: S
           ))}
         </div>
 
-        {/* Tags Header & Search */}
+
         <div style={{ 
           marginTop: '24px', 
           marginBottom: '8px', 

@@ -25,14 +25,14 @@ export default function MainArea({ title, notes, onSearch, onNewNote, onEditNote
   const [isSearchFocused, setIsSearchFocused] = React.useState(false);
   return (
     <div style={{
-      marginLeft: '260px', // width of sidebar
+      marginLeft: '260px',
       padding: '48px 56px',
       minHeight: '100vh',
       display: 'flex',
       flexDirection: 'column',
       gap: '32px'
     }}>
-      {/* Header */}
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <h2 className="serif-title" style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '8px' }}>
@@ -44,7 +44,7 @@ export default function MainArea({ title, notes, onSearch, onNewNote, onEditNote
         </div>
 
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-          {/* Search Bar */}
+
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -76,7 +76,7 @@ export default function MainArea({ title, notes, onSearch, onNewNote, onEditNote
             />
           </div>
 
-          {/* Top Right New Note Button */}
+
           <button
             onClick={onNewNote}
             style={{
@@ -102,7 +102,7 @@ export default function MainArea({ title, notes, onSearch, onNewNote, onEditNote
         </div>
       </div>
 
-      {/* Grid */}
+
       {notes.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '64px', color: 'var(--text-muted)' }}>
           No notes found in this category.
@@ -115,12 +115,12 @@ export default function MainArea({ title, notes, onSearch, onNewNote, onEditNote
           alignItems: 'start'
         }}>
           {notes.map(note => {
-            // Extract title and content depending on if it was parsed as JSON
+
             const lines = note.content.split('\n');
             const title = note.title || (lines[0].length > 30 ? lines[0].substring(0, 30) + '...' : lines[0]);
             const contentPreview = note.title ? note.content : (lines.slice(1).join('\n') || note.content);
 
-            // Format timestamp to MM/DD/YY-h:mm A (e.g. 07/18/26-9:17 PM)
+
             const date = new Date(note.timestamp);
             const month = (date.getMonth() + 1).toString().padStart(2, '0');
             const day = date.getDate().toString().padStart(2, '0');
@@ -129,7 +129,7 @@ export default function MainArea({ title, notes, onSearch, onNewNote, onEditNote
             let hours = date.getHours();
             const ampm = hours >= 12 ? 'PM' : 'AM';
             hours = hours % 12;
-            hours = hours ? hours : 12; // the hour '0' should be '12'
+            hours = hours ? hours : 12;
             const minutes = date.getMinutes().toString().padStart(2, '0');
             
             const formattedTime = `${month}/${day}/${year}-${hours}:${minutes} ${ampm}`;

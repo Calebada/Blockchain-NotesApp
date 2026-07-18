@@ -5,7 +5,7 @@ import Sidebar from "./components/Sidebar";
 import MainArea from "./components/MainArea";
 import NoteModal from "./components/NoteModal";
 
-// Extend ChainBlock internally to include our UI state
+
 interface UINote {
   hash: string;
   author: string;
@@ -33,7 +33,7 @@ export default function App() {
 
   const [pinnedHashes, setPinnedHashes] = useState<Set<string>>(new Set());
 
-  // Convert chain blocks to UI notes
+
   const allNotes: UINote[] = useMemo(() => {
     return [...chain].reverse().map((block) => {
       let title = '';
@@ -41,7 +41,7 @@ export default function App() {
       let content = block.note.content;
 
       try {
-        // Try parsing JSON format first
+
         const parsed = JSON.parse(block.note.content);
         if (parsed && typeof parsed === 'object' && parsed.content) {
           title = parsed.title || '';
@@ -49,8 +49,6 @@ export default function App() {
           content = parsed.content;
         }
       } catch (e) {
-        // Fallback for old plaintext format
-        // We will just let MainArea extract the title from content
       }
 
       return {
@@ -65,19 +63,19 @@ export default function App() {
     });
   }, [chain, pinnedHashes]);
 
-  // Filter and sort notes
+
   const filteredNotes = useMemo(() => {
     let result = allNotes;
     
-    // Filter by tab
+
     if (activeTab === 'pinned') {
       result = result.filter(n => n.isPinned);
     } else if (activeTab !== 'all') {
-      // Tab is a tag
+
       result = result.filter(n => n.tag?.toLowerCase() === activeTab);
     }
     
-    // Filter by search
+
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(n => 
@@ -86,17 +84,17 @@ export default function App() {
       );
     }
     
-    // Sort pinned notes to the top
+
     result.sort((a, b) => {
       if (a.isPinned && !b.isPinned) return -1;
       if (!a.isPinned && b.isPinned) return 1;
-      return 0; // Already in reverse chronological order
+      return 0;
     });
     
     return result;
   }, [allNotes, activeTab, searchQuery]);
 
-  // Calculate counts for sidebar
+
   const counts = useMemo(() => {
     const tagsCount: Record<string, number> = {};
     allNotes.forEach(n => {
@@ -112,7 +110,7 @@ export default function App() {
     };
   }, [allNotes]);
 
-  // Determine Title for MainArea
+
   const mainTitle = useMemo(() => {
     if (activeTab === 'all') return 'All notes';
     if (activeTab === 'pinned') return 'Pinned notes';
@@ -149,7 +147,7 @@ export default function App() {
     setModalError("");
 
     try {
-      // Encode metadata into the content string as JSON so we can persist Title and Tag
+
       const notePayload = JSON.stringify({
         title: title || '',
         tag: tag || 'General',

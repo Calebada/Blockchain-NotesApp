@@ -36,7 +36,6 @@ h6 {
   margin: 0;
 }
 
-/* Hide scrollbar for all browsers while maintaining scroll functionality */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }

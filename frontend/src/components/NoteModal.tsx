@@ -29,14 +29,14 @@ export default function NoteModal({
 
   const tags = ['General', 'Ideas', 'Personal', 'Work'];
 
-  // Input focus states for that subtle orange glow in the screenshot
+
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
   const getInputStyle = (fieldName: string) => ({
     width: '100%',
     padding: '12px 14px',
     border: '1px solid',
-    borderColor: focusedField === fieldName ? 'var(--accent-orange)' : '#E8DCCF', // Warmer border tint matching screenshot
+    borderColor: focusedField === fieldName ? 'var(--accent-orange)' : '#E8DCCF',
     borderRadius: '8px',
     fontSize: '14px',
     outline: 'none',
@@ -50,7 +50,7 @@ export default function NoteModal({
     display: 'block',
     fontSize: '12px',
     fontWeight: 600,
-    color: '#4A443E', // Warmer dark gray text for labels
+    color: '#4A443E',
     marginBottom: '8px',
   });
 
@@ -78,7 +78,7 @@ export default function NoteModal({
         flexDirection: 'column',
         overflow: 'hidden'
       }}>
-        {/* Header - No border bottom, subtitle included */}
+
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -108,7 +108,7 @@ export default function NoteModal({
           </button>
         </div>
 
-        {/* Body Fields */}
+
         <div style={{ padding: '0 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
             <label style={getLabelStyle()}>Title</label>
@@ -152,12 +152,12 @@ export default function NoteModal({
           </div>
 
 
-          {/* Error Message matches screenshot highlighting */}
+
           {error && (
             <div style={{ marginTop: '8px', marginBottom: '8px' }}>
               <span style={{
                 color: '#FFFFFF',
-                backgroundColor: '#5C7CFA', // Blue highlighting from the screenshot 
+                backgroundColor: '#5C7CFA',
                 fontSize: '13px',
                 padding: '2px 4px',
                 lineHeight: 1.5,
@@ -170,7 +170,7 @@ export default function NoteModal({
           )}
         </div>
 
-        {/* Footer */}
+
         <div style={{
           padding: '24px',
           display: 'flex',
