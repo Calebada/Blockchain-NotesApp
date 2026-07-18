@@ -1,21 +1,22 @@
 import React, { useState } from 'react';
-import { PenSquare, Plus, Inbox, Star, Tag, Search } from 'lucide-react';
+import { PenSquare, Plus, Inbox, Star, Tag, Search, Trash2 } from 'lucide-react';
+import { NOTE_TAG_OPTIONS } from '../types/blockchain';
+import type { NoteCounts } from '../types/blockchain';
 
 interface SidebarProps {
   activeTab: string;
   onTabSelect: (tab: string) => void;
   onNewNote: () => void;
-  counts: {
-    all: number;
-    pinned: number;
-    tags: Record<string, number>;
-  };
+  counts: NoteCounts;
 }
 
 export default function Sidebar({ activeTab, onTabSelect, onNewNote, counts }: SidebarProps) {
   const [tagSearchQuery, setTagSearchQuery] = useState('');
 
-  const fixedNav = ['Work', 'Personal', 'Ideas', 'General'];
+  const fixedNav = NOTE_TAG_OPTIONS;
+  const filteredFixedNav = fixedNav.filter(tag =>
+    tag.toLowerCase().includes(tagSearchQuery.toLowerCase())
+  );
   const dynamicTags = Object.keys(counts.tags).filter(
     tag => !fixedNav.map(t => t.toLowerCase()).includes(tag.toLowerCase()) &&
            tag.toLowerCase().includes(tagSearchQuery.toLowerCase())
@@ -97,20 +98,13 @@ export default function Sidebar({ activeTab, onTabSelect, onNewNote, counts }: S
           isActive={activeTab === 'pinned'}
           onClick={() => onTabSelect('pinned')}
         />
-
-        <div>
-          {fixedNav.map(navItem => (
-            <NavItem
-              key={navItem}
-              icon={<Tag size={16} />}
-              label={navItem}
-              count={counts.tags[navItem] || counts.tags[navItem.toLowerCase()] || 0}
-              isActive={activeTab === navItem.toLowerCase()}
-              onClick={() => onTabSelect(navItem.toLowerCase())}
-            />
-          ))}
-        </div>
-
+        <NavItem
+          icon={<Trash2 size={18} />}
+          label="Trash"
+          count={counts.trash}
+          isActive={activeTab === 'trash'}
+          onClick={() => onTabSelect('trash')}
+        />
 
         <div style={{ 
           marginTop: '24px', 
@@ -150,6 +144,17 @@ export default function Sidebar({ activeTab, onTabSelect, onNewNote, counts }: S
           </div>
         </div>
 
+        {filteredFixedNav.map(navItem => (
+          <NavItem
+            key={navItem}
+            icon={<Tag size={16} />}
+            label={`#${navItem.toLowerCase()}`}
+            count={counts.tags[navItem] || counts.tags[navItem.toLowerCase()] || 0}
+            isActive={activeTab === navItem.toLowerCase()}
+            onClick={() => onTabSelect(navItem.toLowerCase())}
+          />
+        ))}
+
         {dynamicTags.map(tag => (
           <NavItem
             key={tag}
@@ -161,7 +166,7 @@ export default function Sidebar({ activeTab, onTabSelect, onNewNote, counts }: S
           />
         ))}
         
-        {tagSearchQuery && dynamicTags.length === 0 && (
+        {tagSearchQuery && filteredFixedNav.length === 0 && dynamicTags.length === 0 && (
           <div style={{ padding: '8px 12px', fontSize: '12px', color: '#8A8581', fontStyle: 'italic' }}>
             No tags found.
           </div>

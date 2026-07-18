@@ -1,27 +1,52 @@
 import React from 'react';
 import { Search, Plus } from 'lucide-react';
+import type { FrontendNote } from '../types/blockchain';
 import NoteCard from './NoteCard';
-
-interface Note {
-  hash: string;
-  author: string;
-  content: string;
-  timestamp: string | number;
-  tag?: string;
-  isPinned?: boolean;
-}
 
 interface MainAreaProps {
   title: string;
-  notes: Note[];
+  notes: FrontendNote[];
+  isTrash?: boolean;
   onSearch: (query: string) => void;
   onNewNote: () => void;
   onEditNote: (id: string) => void;
-  onDeleteNote?: (id: string) => void;
+  onDeleteNote?: (id?: string) => void;
+  onRestoreNote?: (id?: string) => void;
+  onHardDeleteNote?: (id?: string) => void;
   onTogglePin?: (id: string) => void;
 }
 
-export default function MainArea({ title, notes, onSearch, onNewNote, onEditNote, onDeleteNote, onTogglePin }: MainAreaProps) {
+function formatNoteDate(value?: string | null) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  const year = date.getFullYear().toString().slice(-2);
+
+  let hours = date.getHours();
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+
+  return `${month}/${day}/${year}-${hours}:${minutes} ${ampm}`;
+}
+
+export default function MainArea({
+  title,
+  notes,
+  isTrash,
+  onSearch,
+  onNewNote,
+  onEditNote,
+  onDeleteNote,
+  onRestoreNote,
+  onHardDeleteNote,
+  onTogglePin,
+}: MainAreaProps) {
   const [isSearchFocused, setIsSearchFocused] = React.useState(false);
   return (
     <div style={{
@@ -105,7 +130,7 @@ export default function MainArea({ title, notes, onSearch, onNewNote, onEditNote
 
       {notes.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '64px', color: 'var(--text-muted)' }}>
-          No notes found in this category.
+          {isTrash ? 'Trash is empty.' : 'No notes found in this category.'}
         </div>
       ) : (
         <div style={{
@@ -121,31 +146,25 @@ export default function MainArea({ title, notes, onSearch, onNewNote, onEditNote
             const contentPreview = note.title ? note.content : (lines.slice(1).join('\n') || note.content);
 
 
-            const date = new Date(note.timestamp);
-            const month = (date.getMonth() + 1).toString().padStart(2, '0');
-            const day = date.getDate().toString().padStart(2, '0');
-            const year = date.getFullYear().toString().slice(-2);
-            
-            let hours = date.getHours();
-            const ampm = hours >= 12 ? 'PM' : 'AM';
-            hours = hours % 12;
-            hours = hours ? hours : 12;
-            const minutes = date.getMinutes().toString().padStart(2, '0');
-            
-            const formattedTime = `${month}/${day}/${year}-${hours}:${minutes} ${ampm}`;
+            const formattedTime = formatNoteDate(note.timestamp);
+            const deletedAt = formatNoteDate(note.deletedAt);
 
             return (
               <NoteCard
-                key={note.hash}
-                id={note.hash}
+                key={note.id || note.hash}
+                id={note.id}
                 title={title}
                 content={contentPreview}
                 timestamp={formattedTime}
-                tag={note.tag || 'General'}
+                tag={note.tag}
                 isPinned={note.isPinned}
+                isDeleted={isTrash}
+                deletedAt={deletedAt}
                 onEdit={onEditNote}
                 onDelete={onDeleteNote}
-                onTogglePin={onTogglePin}
+                onRestore={onRestoreNote}
+                onHardDelete={onHardDeleteNote}
+                onTogglePin={() => onTogglePin && onTogglePin(note.pinKey)}
               />
             );
           })}

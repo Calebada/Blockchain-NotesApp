@@ -1,33 +1,27 @@
 import React, { useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
+import { NOTE_TAG_OPTIONS } from '../types/blockchain';
+import type { NoteFormValues, NoteTag } from '../types/blockchain';
 
 interface NoteModalProps {
-  initialTitle?: string;
-  initialContent?: string;
-  initialCustomTag?: string;
-  initialSelectedTag?: string;
+  initialValues?: Partial<NoteFormValues>;
   isSubmitting: boolean;
   error?: string;
-  onSave: (content: string, tag: string, title?: string) => void;
+  onSave: (values: NoteFormValues) => void;
   onClose: () => void;
 }
 
 export default function NoteModal({
-  initialTitle = '',
-  initialContent = '',
-  initialCustomTag = '',
-  initialSelectedTag = 'General',
+  initialValues,
   isSubmitting,
   error,
   onSave,
   onClose
 }: NoteModalProps) {
-  const [title, setTitle] = useState(initialTitle);
-  const [customTag, setCustomTag] = useState(initialCustomTag);
-  const [content, setContent] = useState(initialContent);
-  const [selectedTag, setSelectedTag] = useState(initialSelectedTag);
-
-  const tags = ['General', 'Ideas', 'Personal', 'Work'];
+  const isEditing = Boolean(initialValues);
+  const [title, setTitle] = useState(initialValues?.title || '');
+  const [tag, setTag] = useState<NoteTag>(initialValues?.tag || 'General');
+  const [content, setContent] = useState(initialValues?.content || '');
 
 
   const [focusedField, setFocusedField] = useState<string | null>(null);
@@ -87,7 +81,7 @@ export default function NoteModal({
         }}>
           <div>
             <h2 className="serif-title" style={{ fontSize: '24px', margin: '0 0 4px 0', color: 'var(--text-main)', fontWeight: 700 }}>
-              {initialContent ? 'Edit note' : 'New note'}
+              {isEditing ? 'Edit note' : 'New note'}
             </h2>
             <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>
               Capture the thought before it drifts.
@@ -124,14 +118,19 @@ export default function NoteModal({
 
           <div>
             <label style={getLabelStyle()}>Tag</label>
-            <input
-              type="text"
-              value={customTag}
-              onChange={(e) => setCustomTag(e.target.value)}
-              onFocus={() => setFocusedField('customTag')}
+            <select
+              value={tag}
+              onChange={(e) => setTag(e.target.value as NoteTag)}
+              onFocus={() => setFocusedField('tag')}
               onBlur={() => setFocusedField(null)}
-              style={getInputStyle('customTag')}
-            />
+              style={getInputStyle('tag')}
+            >
+              {NOTE_TAG_OPTIONS.map((tagOption) => (
+                <option key={tagOption} value={tagOption}>
+                  {tagOption}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
@@ -195,7 +194,7 @@ export default function NoteModal({
             Cancel
           </button>
           <button
-            onClick={() => onSave(content, customTag || selectedTag, title)}
+            onClick={() => onSave({ title, tag, content })}
             disabled={isSubmitting || !content.trim()}
             style={{
               padding: '10px 16px',
@@ -213,7 +212,7 @@ export default function NoteModal({
             }}
           >
             {isSubmitting && <Loader2 size={16} className="animate-spin" />}
-            {initialContent ? 'Update note' : 'Create note'}
+            {isEditing ? 'Update note' : 'Create note'}
           </button>
         </div>
       </div>

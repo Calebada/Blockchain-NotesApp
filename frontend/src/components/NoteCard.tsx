@@ -1,19 +1,37 @@
 import React, { useState } from 'react';
-import { PenLine, Pin, PinOff, Trash2 } from 'lucide-react';
+import { PenLine, Pin, PinOff, RotateCcw, Trash2 } from 'lucide-react';
 
 interface NoteCardProps {
-  id: string;
+  id?: string;
   title: string;
   content: string;
   timestamp: string;
   tag?: string;
   isPinned?: boolean;
+  isDeleted?: boolean;
+  deletedAt?: string | null;
   onEdit: (id: string) => void;
-  onDelete?: (id: string) => void;
-  onTogglePin?: (id: string) => void;
+  onDelete?: (id?: string) => void;
+  onRestore?: (id?: string) => void;
+  onHardDelete?: (id?: string) => void;
+  onTogglePin?: () => void;
 }
 
-export default function NoteCard({ id, title, content, timestamp, tag, isPinned, onEdit, onDelete, onTogglePin }: NoteCardProps) {
+export default function NoteCard({
+  id,
+  title,
+  content,
+  timestamp,
+  tag,
+  isPinned,
+  isDeleted,
+  deletedAt,
+  onEdit,
+  onDelete,
+  onRestore,
+  onHardDelete,
+  onTogglePin,
+}: NoteCardProps) {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
@@ -56,32 +74,40 @@ export default function NoteCard({ id, title, content, timestamp, tag, isPinned,
                 </span>
               </>
             )}
+            {isDeleted && deletedAt && (
+              <>
+                <span>&middot;</span>
+                <span>Deleted {deletedAt}</span>
+              </>
+            )}
           </div>
         </div>
 
-        <button
-          onClick={() => onTogglePin && onTogglePin(id)}
-          style={{
-            background: isPinned ? '#FCEADB' : 'transparent',
-            color: isPinned ? '#2A2A2A' : '#C6B5A1',
-            padding: '6px',
-            borderRadius: '8px',
-            border: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'background-color 0.2s, color 0.2s'
-          }}
-          onMouseEnter={(e) => {
-            if (!isPinned) e.currentTarget.style.color = '#8A7A6D';
-          }}
-          onMouseLeave={(e) => {
-            if (!isPinned) e.currentTarget.style.color = '#C6B5A1';
-          }}
-        >
-          {isPinned ? <Pin size={16} fill="currentColor" /> : <PinOff size={16} />}
-        </button>
+        {!isDeleted && (
+          <button
+            onClick={() => onTogglePin && onTogglePin()}
+            style={{
+              background: isPinned ? '#FCEADB' : 'transparent',
+              color: isPinned ? '#2A2A2A' : '#C6B5A1',
+              padding: '6px',
+              borderRadius: '8px',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'background-color 0.2s, color 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              if (!isPinned) e.currentTarget.style.color = '#8A7A6D';
+            }}
+            onMouseLeave={(e) => {
+              if (!isPinned) e.currentTarget.style.color = '#C6B5A1';
+            }}
+          >
+            {isPinned ? <Pin size={16} fill="currentColor" /> : <PinOff size={16} />}
+          </button>
+        )}
       </div>
 
       <div style={{ flex: 1 }}>
@@ -108,30 +134,59 @@ export default function NoteCard({ id, title, content, timestamp, tag, isPinned,
         justifyContent: 'space-between',
         alignItems: 'center'
       }}>
-        <button
-          onClick={() => onEdit(id)}
-          style={{
-            background: 'none',
-            border: 'none',
-            padding: 0,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            color: 'var(--text-muted)',
-            fontSize: '13px',
-            fontWeight: 500,
-            cursor: 'pointer'
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-main)'}
-          onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
-        >
-          <PenLine size={14} />
-          Edit
-        </button>
+        {isDeleted ? (
+          <button
+            onClick={() => onRestore && onRestore(id)}
+            disabled={!id}
+            title={id ? "Restore note" : "Restart the backend server to restore this note"}
+            style={{
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              color: 'var(--text-muted)',
+              fontSize: '13px',
+              fontWeight: 500,
+              cursor: id ? 'pointer' : 'not-allowed',
+              opacity: id ? 1 : 0.55
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-main)'}
+            onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
+          >
+            <RotateCcw size={14} />
+            Restore
+          </button>
+        ) : (
+          <button
+            onClick={() => id && onEdit(id)}
+            disabled={!id}
+            title={id ? "Edit note" : "Restart the backend server to edit this note"}
+            style={{
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              color: 'var(--text-muted)',
+              fontSize: '13px',
+              fontWeight: 500,
+              cursor: id ? 'pointer' : 'not-allowed',
+              opacity: id ? 1 : 0.55
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-main)'}
+            onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
+          >
+            <PenLine size={14} />
+            Edit
+          </button>
+        )}
 
         {isHovered && (
           <button
-            onClick={() => onDelete && onDelete(id)}
+            onClick={() => isDeleted ? onHardDelete && onHardDelete(id) : onDelete && onDelete(id)}
             style={{
               background: 'none',
               border: 'none',
@@ -146,7 +201,7 @@ export default function NoteCard({ id, title, content, timestamp, tag, isPinned,
               borderRadius: '6px',
               transition: 'background-color 0.2s'
             }}
-            title="Delete note"
+            title={isDeleted ? "Permanently delete note" : "Move note to trash"}
             onMouseEnter={(e) =>
               e.currentTarget.style.backgroundColor = '#FEF2F2'
             }
@@ -155,7 +210,7 @@ export default function NoteCard({ id, title, content, timestamp, tag, isPinned,
             }
           >
             <Trash2 size={14} />
-            Delete
+            {isDeleted ? 'Delete forever' : 'Delete'}
           </button>
         )}
       </div>
