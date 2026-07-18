@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { addNote, fetchChain, getApiError } from "./api/blockchainApi";
 import type { BlockfrostProvider, CardanoBlock, ChainBlock } from "./types/blockchain";
 import Sidebar from "./components/Sidebar";

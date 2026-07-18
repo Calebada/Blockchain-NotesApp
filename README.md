@@ -1,6 +1,6 @@
 # Blockchain Notes App
 
-A full-stack notes app that uses Blockfrost as its Cardano blockchain provider. The backend keeps the Blockfrost `project_id` private, queries the latest Cardano block, and anchors each saved note to that block with a local SHA-256 note hash.
+A full-stack notes app that uses Blockfrost as its Cardano blockchain provider and Supabase for persistent note proof storage. The backend keeps provider credentials private, queries the latest Cardano block, anchors each saved note to that block with a local SHA-256 note hash, and stores the resulting proof in Supabase.
 
 Blockfrost is the chain access layer for this app. It does not sign wallet transactions by itself, so this starter records anchored note proofs locally. Publishing note metadata directly on-chain would require adding a Cardano wallet/signing flow and submitting a signed transaction through Blockfrost.
 
@@ -47,7 +47,7 @@ Blockfrost is the chain access layer for this app. It does not sign wallet trans
 ## Architecture
 
 - `backend/src/entities` contains note-block creation and hash validation.
-- `backend/src/services` contains application logic and external Blockfrost API access.
+- `backend/src/services` contains application logic, external Blockfrost API access, and note storage adapters.
 - `backend/src/routes` contains HTTP request handling.
 - `backend/server.js` only loads configuration, creates the app, and starts the server.
 - `frontend/src/api`, `types`, `utils`, and `styles` keep data access and shared support code out of the main React component.
@@ -57,6 +57,7 @@ Blockfrost is the chain access layer for this app. It does not sign wallet trans
 - Node.js 18 or newer
 - npm
 - A Blockfrost project for Cardano mainnet, preprod, or preview
+- A Supabase project
 
 ## Blockfrost Setup
 
@@ -75,6 +76,21 @@ PORT=5000
 Supported `BLOCKFROST_NETWORK` values are `mainnet`, `preprod`, and `preview`.
 
 Keep `BLOCKFROST_PROJECT_ID` out of frontend code and commits.
+
+## Supabase Setup
+
+1. Open your Supabase project SQL editor.
+2. Run the schema in `backend/supabase/schema.sql`.
+3. Copy your project URL and service role key from the Supabase dashboard.
+4. Add the values to `backend/.env`:
+
+```bash
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your_backend_only_service_role_key
+SUPABASE_NOTE_BLOCKS_TABLE=note_blocks
+```
+
+Keep `SUPABASE_SERVICE_ROLE_KEY` in the backend only. If Supabase variables are omitted, the app falls back to in-memory note storage for local development.
 
 ## Backend Setup
 
@@ -111,4 +127,4 @@ The Vite app runs at `http://localhost:5173`.
 3. Add notes from the dashboard.
 4. Inspect each note hash, previous note hash, and the Cardano block returned by Blockfrost at the time the note was saved.
 
-Restarting the backend resets the in-memory note proofs. The Cardano block data is always fetched live through Blockfrost.
+With Supabase configured, restarting the backend preserves note proofs. The Cardano block data is always fetched live through Blockfrost.

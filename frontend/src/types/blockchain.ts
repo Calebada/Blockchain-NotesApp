@@ -8,6 +8,11 @@ export type BlockfrostProvider = {
   name: string;
   network: string;
   configured: boolean;
+  storage?: {
+    name: string;
+    table?: string;
+    configured: boolean;
+  };
 };
 
 export type CardanoBlock = {

@@ -1,9 +1,11 @@
 const { createNoteBlock, isNoteBlockValid } = require("../entities/note-block");
 const { BlockfrostClient } = require("./blockfrost-client");
+const { createNoteStore } = require("./note-store");
 
 class NotesLedger {
   constructor(options = {}) {
     this.client = options.client || new BlockfrostClient(options.config);
+    this.store = options.store || createNoteStore(options.storageOptions);
     this.chain = [];
   }
 
@@ -12,6 +14,7 @@ class NotesLedger {
       name: "blockfrost",
       network: this.client.network,
       configured: this.client.isConfigured(),
+      storage: this.store.provider,
     };
   }
 
@@ -28,7 +31,14 @@ class NotesLedger {
     };
   }
 
+  async loadChain() {
+    this.chain = await this.store.listNoteBlocks();
+    return this.chain;
+  }
+
   async addNote({ author, content }) {
+    await this.loadChain();
+
     const latestBlock = await this.getLatestCardanoBlock();
     const previousHash = this.chain.length > 0 ? this.chain[this.chain.length - 1].hash : latestBlock.hash;
     const block = createNoteBlock({
@@ -48,24 +58,27 @@ class NotesLedger {
       },
     });
 
-    this.chain.push(block);
-    return block;
+    const savedBlock = await this.store.saveNoteBlock(block);
+    this.chain.push(savedBlock);
+    return savedBlock;
   }
 
   async getState() {
+    const chain = await this.loadChain();
+
     return {
-      valid: this.isChainValid(),
+      valid: this.isChainValid(chain),
       provider: this.provider,
       latestBlock: await this.getLatestCardanoBlock(),
-      length: this.chain.length,
-      chain: this.chain,
+      length: chain.length,
+      chain,
     };
   }
 
-  isChainValid() {
-    for (let i = 0; i < this.chain.length; i += 1) {
-      const currentBlock = this.chain[i];
-      const previousBlock = this.chain[i - 1];
+  isChainValid(chain = this.chain) {
+    for (let i = 0; i < chain.length; i += 1) {
+      const currentBlock = chain[i];
+      const previousBlock = chain[i - 1];
       const expectedPreviousHash = previousBlock ? previousBlock.hash : currentBlock.anchor.blockHash;
 
       if (!isNoteBlockValid(currentBlock, expectedPreviousHash)) {
