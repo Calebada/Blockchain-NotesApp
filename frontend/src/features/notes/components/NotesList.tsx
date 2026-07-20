@@ -1,9 +1,9 @@
 import React from 'react';
 import { Search, Plus } from 'lucide-react';
-import type { FrontendNote } from '../types/blockchain';
+import type { FrontendNote } from '../types/note';
 import NoteCard from './NoteCard';
 
-interface MainAreaProps {
+interface NotesListProps {
   title: string;
   notes: FrontendNote[];
   isTrash?: boolean;
@@ -35,7 +35,7 @@ function formatNoteDate(value?: string | null) {
   return `${month}/${day}/${year}-${hours}:${minutes} ${ampm}`;
 }
 
-export default function MainArea({
+export default function NotesList({
   title,
   notes,
   isTrash,
@@ -46,7 +46,7 @@ export default function MainArea({
   onRestoreNote,
   onHardDeleteNote,
   onTogglePin,
-}: MainAreaProps) {
+}: NotesListProps) {
   const [isSearchFocused, setIsSearchFocused] = React.useState(false);
   return (
     <div style={{

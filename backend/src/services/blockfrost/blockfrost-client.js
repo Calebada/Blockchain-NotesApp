@@ -3,7 +3,8 @@ const {
   BlockfrostClientError,
   BlockfrostServerError,
 } = require("@blockfrost/blockfrost-js");
-const { createBlockfrostConfig } = require("../config/blockfrost-config");
+const { AppError } = require("../../common/app-error");
+const { createBlockfrostConfig } = require("../../config/blockfrost-config");
 
 class BlockfrostClient {
   constructor(config = createBlockfrostConfig()) {
@@ -25,11 +26,10 @@ class BlockfrostClient {
 
   assertConfigured() {
     if (!this.projectId) {
-      const error = new Error(
-        "BLOCKFROST_PROJECT_ID is required. Create a Blockfrost project and add its project_id to backend/.env."
+      throw new AppError(
+        "BLOCKFROST_PROJECT_ID is required. Create a Blockfrost project and add its project_id to backend/.env.",
+        503
       );
-      error.statusCode = 503;
-      throw error;
     }
   }
 

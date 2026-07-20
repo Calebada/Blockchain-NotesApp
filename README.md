@@ -13,30 +13,41 @@ The Blockfrost SDK is the chain access layer for this app. It does not sign wall
 |   |-- package.json
 |   |-- server.js
 |   `-- src
+|       |-- application
+|       |   `-- notes-ledger.js
 |       |-- app.js
+|       |-- common
+|       |   `-- app-error.js
 |       |-- config
 |       |   |-- blockfrost-config.js
 |       |   `-- env.js
-|       |-- entities
+|       |-- domain
 |       |   `-- note-block.js
-|       |-- routes
-|       |   `-- api-routes.js
+|       |-- http
+|       |   |-- controllers
+|       |   |-- middleware
+|       |   `-- routes
 |       `-- services
-|           |-- blockfrost-client.js
-|           `-- notes-ledger.js
+|           |-- blockfrost
+|           |-- logging
+|           `-- persistence
 |-- frontend
 |   |-- index.html
 |   |-- package.json
 |   |-- src
-|   |   |-- api
-|   |   |   `-- blockchainApi.ts
 |   |   |-- App.tsx
+|   |   |-- config
+|   |   |   `-- api.ts
+|   |   |-- features
+|   |   |   `-- notes
+|   |   |       |-- components
+|   |   |       |-- hooks
+|   |   |       |-- pages
+|   |   |       |-- services
+|   |   |       `-- types
 |   |   |-- main.tsx
-|   |   |-- styles.ts
 |   |   |-- types
 |   |   |   `-- blockchain.ts
-|   |   |-- utils
-|   |   |   `-- hash.ts
 |   |   `-- vite-env.d.ts
 |   |-- tsconfig.json
 |   `-- vite.config.ts
@@ -46,11 +57,13 @@ The Blockfrost SDK is the chain access layer for this app. It does not sign wall
 
 ## Architecture
 
-- `backend/src/entities` contains note-block creation and hash validation.
-- `backend/src/services` contains application logic, external Blockfrost API access, and note storage adapters.
-- `backend/src/routes` contains HTTP request handling.
-- `backend/server.js` only loads configuration, creates the app, and starts the server.
-- `frontend/src/api`, `types`, `utils`, and `styles` keep data access and shared support code out of the main React component.
+- `backend/src/domain` contains note-block creation and hash validation without framework dependencies.
+- `backend/src/application` coordinates note use cases through injected provider, persistence, and logging dependencies.
+- `backend/src/services` contains the Blockfrost SDK adapter, persistence adapters, and transaction logger.
+- `backend/src/http` contains Express controllers, routes, payload parsing, and centralized error middleware.
+- `backend/src/app.js` is the composition root; `backend/server.js` only loads configuration and starts HTTP listening.
+- `frontend/src/features/notes` owns note components, API calls, feature types, pages, and state orchestration.
+- `frontend/src/App.tsx` selects the feature page, while `frontend/src/config` owns deployment-specific configuration.
 
 ## Prerequisites
 
@@ -64,7 +77,7 @@ The Blockfrost SDK is the chain access layer for this app. It does not sign wall
 1. Create a Blockfrost account and project.
 2. Choose the Cardano network for the project.
 3. Copy the generated `project_id`.
-4. Create `backend/.env` from `backend/.env.example`.
+4. Create a local `backend/.env` file.
 5. Set the values:
 
 ```bash
@@ -74,6 +87,7 @@ PORT=5000
 ```
 
 Supported `BLOCKFROST_NETWORK` values are `mainnet`, `preprod`, and `preview`.
+The configured network must match the network assigned to the Blockfrost project ID.
 
 Keep `BLOCKFROST_PROJECT_ID` out of frontend code and commits.
 

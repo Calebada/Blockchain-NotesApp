@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
-import { NOTE_TAG_OPTIONS } from '../types/blockchain';
-import type { NoteFormValues, NoteTag } from '../types/blockchain';
+import { NOTE_TAG_OPTIONS } from '../types/note';
+import type { NoteFormValues, NoteTag } from '../types/note';
 
-interface NoteModalProps {
+interface NoteFormProps {
   initialValues?: Partial<NoteFormValues>;
   isSubmitting: boolean;
   error?: string;
@@ -11,13 +11,13 @@ interface NoteModalProps {
   onClose: () => void;
 }
 
-export default function NoteModal({
+export default function NoteForm({
   initialValues,
   isSubmitting,
   error,
   onSave,
   onClose
-}: NoteModalProps) {
+}: NoteFormProps) {
   const isEditing = Boolean(initialValues);
   const [title, setTitle] = useState(initialValues?.title || '');
   const [tag, setTag] = useState<NoteTag>(initialValues?.tag || 'General');
