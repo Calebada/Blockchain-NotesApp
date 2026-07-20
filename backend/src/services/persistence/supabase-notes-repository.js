@@ -1,6 +1,7 @@
 const { createClient } = require("@supabase/supabase-js");
-const { createSupabaseConfig } = require("../config/supabase-config");
-const { hashNoteBlock } = require("../entities/note-block");
+const { AppError } = require("../../common/app-error");
+const { createSupabaseConfig } = require("../../config/supabase-config");
+const { hashNoteBlock } = require("../../domain/note-block");
 
 function toDatabaseRow(block) {
   return {
@@ -54,12 +55,14 @@ function createTemporaryNoteBlocks(rows, { latestBlock, network }) {
 }
 
 function createStoreError(message, error) {
-  const storeError = new Error(`${message}: ${error.message || error.details || "unknown Supabase error"}`);
-  storeError.statusCode = error.code === "23505" ? 409 : 500;
-  return storeError;
+  return new AppError(
+    `${message}: ${error.message || error.details || "unknown Supabase error"}`,
+    error.code === "23505" ? 409 : 500,
+    { cause: error }
+  );
 }
 
-class SupabaseNoteStore {
+class SupabaseNotesRepository {
   constructor(config = createSupabaseConfig()) {
     this.config = config;
     this.tableName = config.tableName;
@@ -197,5 +200,5 @@ class SupabaseNoteStore {
 }
 
 module.exports = {
-  SupabaseNoteStore,
+  SupabaseNotesRepository,
 };

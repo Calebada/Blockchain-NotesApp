@@ -1,4 +1,4 @@
-const { hashNoteBlock } = require("../entities/note-block");
+const { hashNoteBlock } = require("../../domain/note-block");
 
 function createTemporaryNoteBlocks(blocks, { latestBlock, network }) {
   if (!latestBlock) {
@@ -30,7 +30,7 @@ function createTemporaryNoteBlocks(blocks, { latestBlock, network }) {
   });
 }
 
-class MemoryNoteStore {
+class MemoryNotesRepository {
   constructor() {
     this.blocks = [];
     this.nextId = 1;
@@ -131,5 +131,5 @@ class MemoryNoteStore {
 }
 
 module.exports = {
-  MemoryNoteStore,
+  MemoryNotesRepository,
 };

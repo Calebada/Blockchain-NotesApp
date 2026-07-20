@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { PenSquare, Plus, Inbox, Star, Tag, Search, Trash2 } from 'lucide-react';
-import { NOTE_TAG_OPTIONS } from '../types/blockchain';
-import type { NoteCounts } from '../types/blockchain';
+import { NOTE_TAG_OPTIONS } from '../types/note';
+import type { NoteCounts } from '../types/note';
 
 interface SidebarProps {
   activeTab: string;
