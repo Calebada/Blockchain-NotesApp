@@ -1,8 +1,8 @@
 # Blockchain Notes App
 
-A full-stack notes app that uses Blockfrost as its Cardano blockchain provider and Supabase for persistent note storage. The backend keeps provider credentials private, queries the latest Cardano block, and can show temporary local SHA-256 note proofs without storing hashes in the database.
+A full-stack notes app that uses the official Blockfrost JavaScript SDK as its Cardano blockchain provider and Supabase for persistent note storage. The backend keeps provider credentials private, queries the latest Cardano block, and can show temporary local SHA-256 note proofs without storing hashes in the database.
 
-Blockfrost is the chain access layer for this app. It does not sign wallet transactions by itself, so this starter records anchored note proofs locally. Publishing note metadata directly on-chain would require adding a Cardano wallet/signing flow and submitting a signed transaction through Blockfrost.
+The Blockfrost SDK is the chain access layer for this app. It does not sign wallet transactions by itself, so this starter records anchored note proofs locally. Publishing note metadata directly on-chain would require adding a Cardano wallet/signing flow and submitting a signed transaction through Blockfrost.
 
 ## Project Structure
 
@@ -76,6 +76,8 @@ PORT=5000
 Supported `BLOCKFROST_NETWORK` values are `mainnet`, `preprod`, and `preview`.
 
 Keep `BLOCKFROST_PROJECT_ID` out of frontend code and commits.
+
+The backend initializes `BlockFrostAPI` with the configured project ID and network. The SDK provides request throttling, retries, timeouts, and structured Blockfrost errors. `BLOCKFROST_API_URL` is optional and should only be set when using a compatible custom backend.
 
 ## Supabase Setup
 

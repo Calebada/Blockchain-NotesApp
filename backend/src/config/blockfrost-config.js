@@ -18,6 +18,9 @@ function createBlockfrostConfig(env = process.env) {
   const projectId = env.BLOCKFROST_PROJECT_ID;
   const derivedNetwork = deriveNetworkFromProjectId(projectId);
   const network = (env.BLOCKFROST_NETWORK || derivedNetwork || "preprod").toLowerCase();
+  const customBackend = env.BLOCKFROST_API_URL
+    ? env.BLOCKFROST_API_URL.replace(/\/$/, "")
+    : undefined;
 
   if (!BLOCKFROST_ENDPOINTS[network]) {
     throw new Error(
@@ -29,7 +32,8 @@ function createBlockfrostConfig(env = process.env) {
     network,
     projectId,
     projectNetwork: derivedNetwork,
-    apiUrl: env.BLOCKFROST_API_URL || BLOCKFROST_ENDPOINTS[network],
+    customBackend,
+    apiUrl: customBackend || BLOCKFROST_ENDPOINTS[network],
   };
 }
 
