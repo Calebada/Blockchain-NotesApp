@@ -28,6 +28,7 @@ function createLedger() {
   return new NotesLedger({
     client,
     logger,
+    logWalletUtxosAfterTransaction: async () => {},
     repository: new MemoryNotesRepository(),
   });
 }
