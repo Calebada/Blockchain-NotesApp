@@ -79,6 +79,9 @@ class MemoryNotesRepository {
       noteId: entry.noteId ? String(entry.noteId) : "",
       noteTitle: entry.noteTitle || "",
       noteTag: entry.noteTag || "General",
+      transactionId: entry.transactionId || "",
+      cardanoBlockHash: entry.cardanoBlockHash || "",
+      cardanoBlockHeight: entry.cardanoBlockHeight ?? null,
       network: entry.network || "",
       createdAt: entry.createdAt || new Date().toISOString(),
     };

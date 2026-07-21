@@ -40,6 +40,14 @@ function formatActivityDate(value: string) {
   });
 }
 
+function formatHash(value: string) {
+  if (value.length <= 20) {
+    return value;
+  }
+
+  return `${value.slice(0, 10)}...${value.slice(-10)}`;
+}
+
 export default function TransactionHistoryPage({
   activity,
   error,
@@ -135,13 +143,30 @@ export default function TransactionHistoryPage({
                 {getActivityIcon(entry.action)}
               </div>
 
-              <div style={{ minWidth: 0 }}>
+              <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <div style={{ fontSize: '14px', color: 'var(--text-main)', fontWeight: 700 }}>
                   {ACTION_LABELS[entry.action]}
                 </div>
-                <div style={{ marginTop: '4px', fontSize: '13px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: '13px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {entry.noteTitle || 'Untitled note'} {entry.noteTag ? `#${entry.noteTag.toLowerCase()}` : ''}
                 </div>
+                {entry.transactionId && (
+                  <div
+                    title={entry.transactionId}
+                    style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace' }}
+                  >
+                    App transaction {formatHash(entry.transactionId)}
+                  </div>
+                )}
+                {entry.cardanoBlockHash && (
+                  <div
+                    title={entry.cardanoBlockHash}
+                    style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace' }}
+                  >
+                    Cardano block {entry.cardanoBlockHeight !== null ? `#${entry.cardanoBlockHeight} ` : ''}
+                    {formatHash(entry.cardanoBlockHash)}
+                  </div>
+                )}
               </div>
 
               <div style={{ textAlign: 'right', minWidth: '130px' }}>
