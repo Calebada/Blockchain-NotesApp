@@ -1,9 +1,9 @@
 function logBlockTransaction(action, block) {
-  console.info("Block transaction", {
+  console.info("Local note proof", {
     action,
     noteId: block.id || null,
     blockIndex: block.index,
-    transactionId: block.hash,
+    proofHash: block.hash,
     cardanoBlockHash: block.anchor.blockHash,
     cardanoBlockHeight: block.anchor.blockHeight,
     network: block.anchor.network,

@@ -6,6 +6,7 @@ const {
   notFoundHandler,
 } = require("./http/middleware/error-handler");
 const { createNotesRouter } = require("./http/routes/notes-routes");
+const { NoteTransactionService } = require("./services/cardano/note-transaction-service");
 const { BlockfrostClient } = require("./services/blockfrost/blockfrost-client");
 const { logger } = require("./services/logging/logger");
 const { createNotesRepository } = require("./services/persistence/notes-repository");
@@ -25,7 +26,9 @@ function createApp(options = {}) {
 
   app.use(cors());
   app.use(express.json());
-  app.use("/api", createNotesRouter(notesLedger));
+  const noteTransactionService =
+    options.noteTransactionService || new NoteTransactionService(notesLedger.client);
+  app.use("/api", createNotesRouter(notesLedger, noteTransactionService));
   app.use(notFoundHandler);
   app.use(createErrorHandler(notesLedger));
 

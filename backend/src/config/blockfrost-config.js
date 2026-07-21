@@ -1,4 +1,4 @@
-const SUPPORTED_BLOCKFROST_NETWORKS = ["mainnet", "preprod", "preview"];
+const SUPPORTED_BLOCKFROST_NETWORKS = ["preprod"];
 
 function deriveNetworkFromProjectId(projectId) {
   if (!projectId) {

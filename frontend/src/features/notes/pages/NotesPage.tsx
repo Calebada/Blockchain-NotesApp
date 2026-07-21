@@ -7,7 +7,10 @@ import { useWalletAuth } from "../hooks/useWalletAuth";
 
 export default function NotesPage() {
   const walletAuth = useWalletAuth();
-  const notes = useNotes({ walletAddress: walletAuth.connectedWallet?.address });
+  const notes = useNotes({
+    walletAddress: walletAuth.connectedWallet?.address,
+    publishNoteProof: walletAuth.publishNoteProof,
+  });
 
   return (
     <div style={{ display: "flex" }}>

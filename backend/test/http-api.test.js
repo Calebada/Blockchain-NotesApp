@@ -6,15 +6,16 @@ function createNotesLedgerStub() {
   const ledger = {
     requestedWalletAddress: undefined,
     mutationWalletAddresses: [],
+    mutationOptions: [],
     provider: {
       name: "blockfrost",
-      network: "mainnet",
+      network: "preprod",
       configured: true,
     },
     getState: async () => ({ valid: true, length: 0, chain: [] }),
     getTrashState: async () => ({ valid: true, length: 0, chain: [] }),
     getActivity: async (walletAddress) => ({
-      network: "mainnet",
+      network: "preprod",
       walletAddress,
       activity: [
         {
@@ -24,36 +25,45 @@ function createNotesLedgerStub() {
           noteId: "1",
           noteTitle: "Wallet test",
           noteTag: "General",
-          transactionId: "c".repeat(64),
+          proofHash: "c".repeat(64),
+          cardanoTxHash: "e".repeat(64),
+          confirmationStatus: "Confirmed",
           cardanoBlockHash: "d".repeat(64),
           cardanoBlockHeight: 123456,
-          network: "mainnet",
+          validUntilSlot: 123999,
+          confirmedAt: "2026-07-21T00:01:00.000Z",
+          network: "preprod",
           createdAt: "2026-07-21T00:00:00.000Z",
         },
       ],
     }),
     addNote: async (_note, options = {}) => {
       ledger.mutationWalletAddresses.push(options.walletAddress);
+      ledger.mutationOptions.push(options);
 
       return { block: { id: "1", note: _note }, valid: true };
     },
     updateNote: async (_id, _note, options = {}) => {
       ledger.mutationWalletAddresses.push(options.walletAddress);
+      ledger.mutationOptions.push(options);
 
       return { block: { id: _id, note: _note }, valid: true };
     },
     restoreNote: async (_id, options = {}) => {
       ledger.mutationWalletAddresses.push(options.walletAddress);
+      ledger.mutationOptions.push(options);
 
       return { block: { id: _id }, valid: true };
     },
     deleteNote: async (_id, options = {}) => {
       ledger.mutationWalletAddresses.push(options.walletAddress);
+      ledger.mutationOptions.push(options);
 
       return { valid: true };
     },
     hardDeleteNote: async (_id, options = {}) => {
       ledger.mutationWalletAddresses.push(options.walletAddress);
+      ledger.mutationOptions.push(options);
 
       return { valid: true };
     },
@@ -83,8 +93,15 @@ function createNotesLedgerStub() {
   return ledger;
 }
 
-async function withServer(run, notesLedger = createNotesLedgerStub()) {
-  const { app } = createApp({ notesLedger });
+async function withServer(
+  run,
+  notesLedger = createNotesLedgerStub(),
+  noteTransactionService = {
+    prepare: async () => ({ unsignedTx: "00", proofHash: "a".repeat(64) }),
+    submit: async () => ({ cardanoTxHash: "b".repeat(64), confirmationStatus: "Pending" }),
+  }
+) {
+  const { app } = createApp({ notesLedger, noteTransactionService });
   const server = app.listen(0, "127.0.0.1");
   await new Promise((resolve) => server.once("listening", resolve));
 
@@ -105,7 +122,7 @@ test("returns health through the HTTP controller", async () => {
 
     assert.equal(response.status, 200);
     assert.equal(body.status, "ok");
-    assert.equal(body.provider.network, "mainnet");
+    assert.equal(body.provider.network, "preprod");
   });
 });
 
@@ -166,7 +183,9 @@ test("returns tracked note activity through the HTTP controller", async () => {
     assert.equal(body.walletAddress, walletAddress);
     assert.equal(body.activity[0].action, "CREATE_NOTE");
     assert.equal(body.activity[0].walletAddress, "addr_test_connected_wallet");
-    assert.equal(body.activity[0].transactionId, "c".repeat(64));
+    assert.equal(body.activity[0].proofHash, "c".repeat(64));
+    assert.equal(body.activity[0].cardanoTxHash, "e".repeat(64));
+    assert.equal(body.activity[0].confirmationStatus, "Confirmed");
     assert.equal(body.activity[0].cardanoBlockHash, "d".repeat(64));
     assert.equal(body.activity[0].cardanoBlockHeight, 123456);
   }, notesLedger);
@@ -184,6 +203,10 @@ test("passes the connected wallet address through note mutations", async () => {
       tag: "General",
       content: "Testing connected wallet UTXOs.",
       walletAddress,
+      proofHash: "a".repeat(64),
+      cardanoTxHash: "b".repeat(64),
+      confirmationStatus: "Pending",
+      validUntilSlot: 999999,
     });
 
     const createResponse = await fetch(`${baseUrl}/api/notes`, {
@@ -199,17 +222,17 @@ test("passes the connected wallet address through note mutations", async () => {
     const restoreResponse = await fetch(`${baseUrl}/api/notes/1/restore`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ walletAddress }),
+      body,
     });
     const deleteResponse = await fetch(`${baseUrl}/api/notes/1`, {
       method: "DELETE",
       headers,
-      body: JSON.stringify({ walletAddress }),
+      body,
     });
     const hardDeleteResponse = await fetch(`${baseUrl}/api/notes/1/permanent`, {
       method: "DELETE",
       headers,
-      body: JSON.stringify({ walletAddress }),
+      body,
     });
 
     assert.equal(createResponse.status, 201);
@@ -224,7 +247,62 @@ test("passes the connected wallet address through note mutations", async () => {
       walletAddress,
       walletAddress,
     ]);
+    assert.ok(
+      notesLedger.mutationOptions.every(
+        (options) =>
+          options.proofHash === "a".repeat(64) &&
+          options.cardanoTxHash === "b".repeat(64) &&
+          options.confirmationStatus === "Pending" &&
+          options.validUntilSlot === 999999
+      )
+    );
   }, notesLedger);
+});
+
+test("prepares and submits wallet-signed Preprod transactions", async () => {
+  const calls = [];
+  const noteTransactionService = {
+    prepare: async (payload) => {
+      calls.push(["prepare", payload]);
+      return {
+        unsignedTx: "00",
+        proofHash: "a".repeat(64),
+        validUntilSlot: 1234,
+        network: "preprod",
+      };
+    },
+    submit: async (payload) => {
+      calls.push(["submit", payload]);
+      return {
+        cardanoTxHash: "b".repeat(64),
+        confirmationStatus: "Pending",
+        network: "preprod",
+      };
+    },
+  };
+
+  await withServer(async (baseUrl) => {
+    const headers = { "content-type": "application/json" };
+    const prepareResponse = await fetch(`${baseUrl}/api/transactions/prepare`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ action: "CREATE_NOTE", utxos: ["abcd"] }),
+    });
+    const submitResponse = await fetch(`${baseUrl}/api/transactions/submit`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ unsignedTx: "00", witnessSet: "a0" }),
+    });
+
+    assert.equal(prepareResponse.status, 200);
+    assert.equal((await prepareResponse.json()).network, "preprod");
+    assert.equal(submitResponse.status, 202);
+    assert.equal((await submitResponse.json()).cardanoTxHash, "b".repeat(64));
+    assert.deepEqual(calls, [
+      ["prepare", { action: "CREATE_NOTE", utxos: ["abcd"] }],
+      ["submit", { unsignedTx: "00", witnessSet: "a0" }],
+    ]);
+  }, createNotesLedgerStub(), noteTransactionService);
 });
 
 test("returns a centralized 404 response for unknown routes", async () => {

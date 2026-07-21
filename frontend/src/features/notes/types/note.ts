@@ -30,6 +30,10 @@ export type NoteCounts = {
 export type CreateNoteRequest = {
   author: string;
   walletAddress?: string | null;
+  proofHash: string;
+  cardanoTxHash: string;
+  confirmationStatus: "Pending";
+  validUntilSlot: number;
 } & NoteContent;
 
 export type UpdateNoteRequest = CreateNoteRequest & {

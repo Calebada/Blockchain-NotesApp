@@ -42,9 +42,7 @@ function getNoteDetailsFromRow(row) {
 
 function getTransactionDetailsFromBlock(block) {
   return {
-    transactionId: block?.hash || "",
-    cardanoBlockHash: block?.anchor?.blockHash || "",
-    cardanoBlockHeight: block?.anchor?.blockHeight ?? null,
+    proofHash: block?.hash || "",
   };
 }
 
@@ -266,14 +264,15 @@ class NotesLedger {
 
   async getActivity(walletAddressOverride = "") {
     const walletAddress = normalizeWalletAddress(walletAddressOverride);
+    const activity = walletAddress
+      ? await this.repository.listActivity({ walletAddress })
+      : [];
 
     return {
       provider: this.provider,
       network: this.client.network,
       walletAddress,
-      activity: walletAddress
-        ? await this.repository.listActivity({ walletAddress })
-        : [],
+      activity: await this.syncActivityStatuses(activity),
     };
   }
 
@@ -343,10 +342,73 @@ class NotesLedger {
         network: this.client.network,
         ...details,
         ...getTransactionDetailsFromBlock(source),
+        proofHash: options.proofHash || getTransactionDetailsFromBlock(source).proofHash,
+        cardanoTxHash: options.cardanoTxHash || "",
+        confirmationStatus:
+          options.confirmationStatus || (options.cardanoTxHash ? "Pending" : "Failed"),
+        validUntilSlot: options.validUntilSlot ?? null,
       });
     } catch (error) {
       console.warn("Note activity tracking failed:", error.message);
     }
+  }
+
+  async syncActivityStatuses(activity) {
+    const pending = activity.filter(
+      (entry) => entry.confirmationStatus === "Pending" && entry.cardanoTxHash
+    );
+
+    if (pending.length === 0 || typeof this.repository.updateActivity !== "function") {
+      return activity;
+    }
+
+    let latestSlot = null;
+    const getLatestSlot = async () => {
+      if (latestSlot === null) {
+        latestSlot = (await this.client.getLatestBlock()).slot;
+      }
+      return latestSlot;
+    };
+
+    const updates = new Map();
+
+    await Promise.all(
+      pending.map(async (entry) => {
+        try {
+          const transaction = await this.client.getTransaction(entry.cardanoTxHash);
+          updates.set(
+            entry.id,
+            await this.repository.updateActivity(entry.id, {
+              confirmationStatus: "Confirmed",
+              cardanoBlockHash: transaction.block || "",
+              cardanoBlockHeight: transaction.block_height ?? null,
+              confirmedAt: transaction.block_time
+                ? new Date(transaction.block_time * 1000).toISOString()
+                : new Date().toISOString(),
+            })
+          );
+        } catch (error) {
+          const isNotFound = error.statusCode === 404 || error.status_code === 404;
+
+          if (isNotFound && entry.validUntilSlot !== null) {
+            const currentSlot = await getLatestSlot();
+
+            if (currentSlot > entry.validUntilSlot) {
+              updates.set(
+                entry.id,
+                await this.repository.updateActivity(entry.id, {
+                  confirmationStatus: "Failed",
+                })
+              );
+            }
+          } else if (!isNotFound) {
+            console.warn("Cardano transaction status lookup failed:", error.message);
+          }
+        }
+      })
+    );
+
+    return activity.map((entry) => updates.get(entry.id) || entry);
   }
 }
 

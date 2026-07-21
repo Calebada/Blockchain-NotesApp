@@ -23,7 +23,7 @@ export default function NoteForm({
   walletAuth
 }: NoteFormProps) {
   const isEditing = Boolean(initialValues);
-  const requiresWallet = !isEditing;
+  const requiresWallet = true;
   const [title, setTitle] = useState(initialValues?.title || '');
   const [tag, setTag] = useState<NoteTag>(initialValues?.tag || 'General');
   const [content, setContent] = useState(initialValues?.content || '');

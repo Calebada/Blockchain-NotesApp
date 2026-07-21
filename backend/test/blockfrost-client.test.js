@@ -1,6 +1,18 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const { BlockfrostClient } = require("../src/services/blockfrost/blockfrost-client");
+const { createBlockfrostConfig } = require("../src/config/blockfrost-config");
+
+test("rejects non-Preprod Blockfrost configuration", () => {
+  assert.throws(
+    () =>
+      createBlockfrostConfig({
+        BLOCKFROST_NETWORK: "mainnet",
+        BLOCKFROST_PROJECT_ID: "mainnet_test_project",
+      }),
+    /Use preprod/
+  );
+});
 
 test("fetches address UTXOs through the Blockfrost SDK instance", async () => {
   const client = new BlockfrostClient({

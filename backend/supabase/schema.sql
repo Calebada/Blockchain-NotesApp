@@ -38,21 +38,49 @@ create table if not exists public.note_activity (
   note_id bigint,
   note_title text not null default '',
   note_tag text not null default 'General',
-  transaction_id text not null default '',
+  proof_hash text not null default '',
+  cardano_tx_hash text not null default '',
+  confirmation_status text not null default 'Failed',
   cardano_block_hash text not null default '',
   cardano_block_height bigint,
+  valid_until_slot bigint,
+  confirmed_at timestamptz,
   network text not null default '',
   created_at timestamptz not null default now()
 );
 
 alter table public.note_activity
-  add column if not exists transaction_id text not null default '';
+  add column if not exists proof_hash text not null default '';
+
+alter table public.note_activity
+  add column if not exists cardano_tx_hash text not null default '';
+
+alter table public.note_activity
+  add column if not exists confirmation_status text not null default 'Failed';
 
 alter table public.note_activity
   add column if not exists cardano_block_hash text not null default '';
 
 alter table public.note_activity
   add column if not exists cardano_block_height bigint;
+
+alter table public.note_activity
+  add column if not exists valid_until_slot bigint;
+
+alter table public.note_activity
+  add column if not exists confirmed_at timestamptz;
+
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'note_activity'
+      and column_name = 'transaction_id'
+  ) then
+    execute 'update public.note_activity set proof_hash = transaction_id where proof_hash = '''' and transaction_id <> ''''';
+  end if;
+end $$;
 
 create index if not exists note_activity_created_at_idx
   on public.note_activity (created_at desc);
@@ -63,9 +91,13 @@ create index if not exists note_activity_wallet_address_idx
 create index if not exists note_activity_note_id_idx
   on public.note_activity (note_id);
 
-create index if not exists note_activity_transaction_id_idx
-  on public.note_activity (transaction_id)
-  where transaction_id <> '';
+create index if not exists note_activity_proof_hash_idx
+  on public.note_activity (proof_hash)
+  where proof_hash <> '';
+
+create index if not exists note_activity_cardano_tx_hash_idx
+  on public.note_activity (cardano_tx_hash)
+  where cardano_tx_hash <> '';
 
 create index if not exists note_activity_cardano_block_hash_idx
   on public.note_activity (cardano_block_hash)

@@ -19,6 +19,7 @@
   "license": "MIT",
   "dependencies": {
     "@blockfrost/blockfrost-js": "^6.1.1",
+    "@emurgo/cardano-serialization-lib-nodejs": "^15.0.3",
     "@supabase/supabase-js": "^2.110.7",
     "cors": "^2.8.5",
     "express": "^4.18.3",

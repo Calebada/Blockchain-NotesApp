@@ -12,6 +12,20 @@ function getWalletAddressFromRequest(req) {
   return "";
 }
 
+function getChainDetailsFromRequest(req) {
+  return {
+    proofHash: typeof req.body?.proofHash === "string" ? req.body.proofHash : "",
+    cardanoTxHash:
+      typeof req.body?.cardanoTxHash === "string" ? req.body.cardanoTxHash : "",
+    confirmationStatus:
+      typeof req.body?.confirmationStatus === "string"
+        ? req.body.confirmationStatus
+        : "Pending",
+    validUntilSlot:
+      Number.isSafeInteger(req.body?.validUntilSlot) ? req.body.validUntilSlot : null,
+  };
+}
+
 function createNotesController(notesLedger) {
   return {
     getHealth(req, res) {
@@ -29,10 +43,11 @@ function createNotesController(notesLedger) {
     async createNote(req, res) {
       const { block, valid } = await notesLedger.addNote(validateNotePayload(req.body), {
         walletAddress: getWalletAddressFromRequest(req),
+        ...getChainDetailsFromRequest(req),
       });
 
       res.status(201).json({
-        message: "Note anchored to the latest Cardano block through Blockfrost.",
+        message: "Note created after its signed Preprod transaction was submitted.",
         block,
         valid,
         provider: notesLedger.provider,
@@ -57,6 +72,7 @@ function createNotesController(notesLedger) {
         validateNotePayload(req.body),
         {
           walletAddress: getWalletAddressFromRequest(req),
+          ...getChainDetailsFromRequest(req),
         }
       );
 
@@ -71,6 +87,7 @@ function createNotesController(notesLedger) {
     async restoreNote(req, res) {
       const { block, valid } = await notesLedger.restoreNote(req.params.id, {
         walletAddress: getWalletAddressFromRequest(req),
+        ...getChainDetailsFromRequest(req),
       });
 
       res.json({
@@ -84,6 +101,7 @@ function createNotesController(notesLedger) {
     async permanentlyDeleteNote(req, res) {
       const { valid } = await notesLedger.hardDeleteNote(req.params.id, {
         walletAddress: getWalletAddressFromRequest(req),
+        ...getChainDetailsFromRequest(req),
       });
 
       res.json({
@@ -96,6 +114,7 @@ function createNotesController(notesLedger) {
     async deleteNote(req, res) {
       const { valid } = await notesLedger.deleteNote(req.params.id, {
         walletAddress: getWalletAddressFromRequest(req),
+        ...getChainDetailsFromRequest(req),
       });
 
       res.json({
