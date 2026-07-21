@@ -11,7 +11,6 @@ class BlockfrostClient {
     this.network = config.network;
     this.projectId = config.projectId;
     this.projectNetwork = config.projectNetwork;
-    this.walletAddress = config.walletAddress || "";
     this.api = this.projectId
       ? new BlockFrostAPI({
           projectId: this.projectId,
@@ -62,13 +61,23 @@ class BlockfrostClient {
     }
   }
 
-  async getAddressUtxos(walletAddress = this.walletAddress) {
+  async getAddressUtxos(walletAddress) {
     this.assertConfigured();
+
+    if (!walletAddress) {
+      throw new AppError("A connected Cardano wallet address is required.", 400);
+    }
 
     try {
       return await this.api.addressesUtxos(walletAddress);
     } catch (error) {
-      throw this.normalizeSdkError(error);
+      const normalizedError = this.normalizeSdkError(error);
+
+      if (normalizedError.statusCode === 404) {
+        return [];
+      }
+
+      throw normalizedError;
     }
   }
 }

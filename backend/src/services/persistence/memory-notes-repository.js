@@ -33,7 +33,9 @@ function createTemporaryNoteBlocks(blocks, { latestBlock, network }) {
 class MemoryNotesRepository {
   constructor() {
     this.blocks = [];
+    this.activity = [];
     this.nextId = 1;
+    this.nextActivityId = 1;
   }
 
   get provider() {
@@ -49,6 +51,41 @@ class MemoryNotesRepository {
 
   async listDeletedNoteBlocks(options = {}) {
     return createTemporaryNoteBlocks(this.blocks.filter((block) => block.deletedAt), options);
+  }
+
+  async listActivity(options = {}) {
+    const walletAddress = options.walletAddress || "";
+    const activity = walletAddress
+      ? this.activity.filter((entry) => entry.walletAddress === walletAddress)
+      : this.activity;
+
+    return [...activity].sort((left, right) => {
+      const timeDifference =
+        new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
+
+      if (timeDifference !== 0) {
+        return timeDifference;
+      }
+
+      return Number(right.id) - Number(left.id);
+    });
+  }
+
+  async recordActivity(entry) {
+    const activityEntry = {
+      id: String(this.nextActivityId),
+      action: entry.action,
+      walletAddress: entry.walletAddress || "",
+      noteId: entry.noteId ? String(entry.noteId) : "",
+      noteTitle: entry.noteTitle || "",
+      noteTag: entry.noteTag || "General",
+      network: entry.network || "",
+      createdAt: entry.createdAt || new Date().toISOString(),
+    };
+
+    this.nextActivityId += 1;
+    this.activity.push(activityEntry);
+    return activityEntry;
   }
 
   async saveNoteBlock(block) {

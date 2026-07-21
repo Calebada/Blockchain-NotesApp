@@ -83,7 +83,6 @@ The Blockfrost SDK is the chain access layer for this app. It does not sign wall
 ```bash
 BLOCKFROST_PROJECT_ID=preprod_your_project_id_here
 BLOCKFROST_NETWORK=preprod
-CARDANO_BACKEND_WALLET_ADDRESS=addr_test_your_backend_wallet_address_here
 PORT=5000
 ```
 
@@ -92,7 +91,7 @@ The configured network must match the network assigned to the Blockfrost project
 
 Keep `BLOCKFROST_PROJECT_ID` out of frontend code and commits.
 
-The backend initializes `BlockFrostAPI` with the configured project ID and network. The SDK provides request throttling, retries, timeouts, and structured Blockfrost errors. `BLOCKFROST_API_URL` is optional and should only be set when using a compatible custom backend. When `CARDANO_BACKEND_WALLET_ADDRESS` is set, the backend fetches live UTXOs for that wallet after note create, update, and restore transactions, prints them with `console.table()`, and summarizes the active ADA balance.
+The backend initializes `BlockFrostAPI` with the configured project ID and network. The SDK provides request throttling, retries, timeouts, and structured Blockfrost errors. `BLOCKFROST_API_URL` is optional and should only be set when using a compatible custom backend. The frontend sends the connected browser wallet address to the backend for live UTXO checks, so the wallet shown in the dashboard is the wallet you connected.
 
 ## Supabase Setup
 
@@ -136,6 +135,7 @@ Available endpoints:
 
 - `GET /api/chain` - fetch local anchored notes plus the latest Cardano block from Blockfrost
 - `GET /api/notes/trash` - fetch soft-deleted notes
+- `GET /api/activity` - fetch recent note activity tracked by connected wallet address
 - `POST /api/notes` - add a note with JSON body `{ "author": "Ada", "content": "My secured note" }`
 - `PUT /api/notes/:id` - edit a note with JSON body `{ "author": "Ada", "content": "Updated note" }`
 - `DELETE /api/notes/:id` - soft delete a note by moving it to Trash and recalculating the local proof chain

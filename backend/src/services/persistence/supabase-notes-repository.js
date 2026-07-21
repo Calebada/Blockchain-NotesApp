@@ -14,6 +14,31 @@ function toDatabaseRow(block) {
   };
 }
 
+function toActivityDatabaseRow(entry) {
+  return {
+    action: entry.action,
+    wallet_address: entry.walletAddress || "",
+    note_id: entry.noteId || null,
+    note_title: entry.noteTitle || "",
+    note_tag: entry.noteTag || "General",
+    network: entry.network || "",
+    created_at: entry.createdAt || new Date().toISOString(),
+  };
+}
+
+function toActivityEntry(row) {
+  return {
+    id: String(row.id),
+    action: row.action,
+    walletAddress: row.wallet_address || "",
+    noteId: row.note_id ? String(row.note_id) : "",
+    noteTitle: row.note_title || "",
+    noteTag: row.note_tag || "General",
+    network: row.network || "",
+    createdAt: row.created_at,
+  };
+}
+
 function createTemporaryNoteBlocks(rows, { latestBlock, network }) {
   if (!latestBlock) {
     return [];
@@ -112,6 +137,41 @@ class SupabaseNotesRepository {
     return createTemporaryNoteBlocks(data, options);
   }
 
+  async listActivity(options = {}) {
+    let query = this.client
+      .from("note_activity")
+      .select("id,action,wallet_address,note_id,note_title,note_tag,network,created_at")
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(50);
+
+    if (options.walletAddress) {
+      query = query.eq("wallet_address", options.walletAddress);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      throw createStoreError("Unable to load note activity from Supabase", error);
+    }
+
+    return data.map(toActivityEntry);
+  }
+
+  async recordActivity(entry) {
+    const { data, error } = await this.client
+      .from("note_activity")
+      .insert(toActivityDatabaseRow(entry))
+      .select("id,action,wallet_address,note_id,note_title,note_tag,network,created_at")
+      .single();
+
+    if (error) {
+      throw createStoreError("Unable to save note activity to Supabase", error);
+    }
+
+    return toActivityEntry(data);
+  }
+
   async saveNoteBlock(block) {
     const { data, error } = await this.client
       .from(this.tableName)
@@ -157,7 +217,7 @@ class SupabaseNotesRepository {
       .update({ deleted_at: deletedAt })
       .eq("id", id)
       .is("deleted_at", null)
-      .select("id,deleted_at")
+      .select("id,author,title,tag,content,deleted_at")
       .maybeSingle();
 
     if (error) {
@@ -188,7 +248,7 @@ class SupabaseNotesRepository {
       .from(this.tableName)
       .delete()
       .eq("id", id)
-      .select("id")
+      .select("id,author,title,tag,content")
       .maybeSingle();
 
     if (error) {

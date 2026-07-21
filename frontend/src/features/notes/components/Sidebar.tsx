@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PenSquare, Plus, Inbox, Star, Tag, Search, Trash2 } from 'lucide-react';
+import { History, PenSquare, Plus, Inbox, Star, Tag, Search, Trash2 } from 'lucide-react';
 import { NOTE_TAG_OPTIONS } from '../types/note';
 import type { WalletAuthState } from '../hooks/useWalletAuth';
 import type { NoteCounts } from '../types/note';
@@ -12,9 +12,17 @@ interface SidebarProps {
   onNewNote: () => void;
   counts: NoteCounts;
   walletAuth: WalletAuthState;
+  transactionCount: number;
 }
 
-export default function Sidebar({ activeTab, onTabSelect, onNewNote, counts, walletAuth }: SidebarProps) {
+export default function Sidebar({
+  activeTab,
+  onTabSelect,
+  onNewNote,
+  counts,
+  walletAuth,
+  transactionCount,
+}: SidebarProps) {
   const [tagSearchQuery, setTagSearchQuery] = useState('');
 
   const fixedNav = NOTE_TAG_OPTIONS;
@@ -108,6 +116,13 @@ export default function Sidebar({ activeTab, onTabSelect, onNewNote, counts, wal
           count={counts.trash}
           isActive={activeTab === 'trash'}
           onClick={() => onTabSelect('trash')}
+        />
+        <NavItem
+          icon={<History size={18} />}
+          label="Transaction history"
+          count={transactionCount}
+          isActive={activeTab === 'transactions'}
+          onClick={() => onTabSelect('transactions')}
         />
 
         <div style={{ 

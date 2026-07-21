@@ -14,6 +14,7 @@ function createNotesRouter(notesLedger) {
   router.get("/health", controller.getHealth);
   router.get("/chain", asyncHandler(controller.getChain));
   router.get("/notes/trash", asyncHandler(controller.getTrash));
+  router.get("/activity", asyncHandler(controller.getActivity));
   router.get("/wallet/transactions", asyncHandler(controller.getWalletTransactions));
   router.post("/notes", asyncHandler(controller.createNote));
   router.put("/notes/:id", asyncHandler(controller.updateNote));

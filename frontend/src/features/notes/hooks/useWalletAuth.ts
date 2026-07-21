@@ -7,6 +7,7 @@ import type {
 } from "../../../types/cardano-wallet";
 
 const CONNECTED_WALLET_STORAGE_KEY = "notetify.connectedWalletId";
+const BECH32_CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 
 export function useWalletAuth() {
   const [wallets, setWallets] = useState<WalletOption[]>([]);
@@ -166,10 +167,116 @@ async function readWalletAddress(api: Awaited<ReturnType<CardanoWalletProvider["
   const usedAddresses = await api.getUsedAddresses();
 
   if (usedAddresses[0]) {
-    return usedAddresses[0];
+    return normalizeCardanoAddress(usedAddresses[0]);
   }
 
-  return api.getChangeAddress();
+  return normalizeCardanoAddress(await api.getChangeAddress());
+}
+
+function normalizeCardanoAddress(address: string) {
+  const trimmedAddress = address.trim();
+
+  if (!isHexAddress(trimmedAddress)) {
+    return trimmedAddress;
+  }
+
+  return encodeCardanoAddressHex(trimmedAddress);
+}
+
+function isHexAddress(address: string) {
+  return address.length > 0 && address.length % 2 === 0 && /^[0-9a-f]+$/i.test(address);
+}
+
+function encodeCardanoAddressHex(addressHex: string) {
+  const addressBytes = hexToBytes(addressHex);
+  const networkId = addressBytes[0] & 0x0f;
+  const humanReadablePart = networkId === 1 ? "addr" : "addr_test";
+
+  return encodeBech32(humanReadablePart, addressBytes);
+}
+
+function hexToBytes(hex: string) {
+  const bytes = new Uint8Array(hex.length / 2);
+
+  for (let index = 0; index < bytes.length; index += 1) {
+    bytes[index] = Number.parseInt(hex.slice(index * 2, index * 2 + 2), 16);
+  }
+
+  return bytes;
+}
+
+function encodeBech32(humanReadablePart: string, bytes: Uint8Array) {
+  const data = convertBits([...bytes], 8, 5, true);
+  const checksum = createBech32Checksum(humanReadablePart, data);
+
+  return `${humanReadablePart}1${[...data, ...checksum]
+    .map((value) => BECH32_CHARSET[value])
+    .join("")}`;
+}
+
+function convertBits(data: number[], fromBits: number, toBits: number, pad: boolean) {
+  const converted: number[] = [];
+  let accumulator = 0;
+  let bitCount = 0;
+  const maxValue = (1 << toBits) - 1;
+
+  data.forEach((value) => {
+    accumulator = (accumulator << fromBits) | value;
+    bitCount += fromBits;
+
+    while (bitCount >= toBits) {
+      bitCount -= toBits;
+      converted.push((accumulator >> bitCount) & maxValue);
+    }
+  });
+
+  if (pad && bitCount > 0) {
+    converted.push((accumulator << (toBits - bitCount)) & maxValue);
+  }
+
+  return converted;
+}
+
+function createBech32Checksum(humanReadablePart: string, data: number[]) {
+  const values = [
+    ...expandBech32HumanReadablePart(humanReadablePart),
+    ...data,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+  ];
+  const polymod = calculateBech32Polymod(values) ^ 1;
+
+  return Array.from({ length: 6 }, (_, index) => (polymod >> (5 * (5 - index))) & 31);
+}
+
+function expandBech32HumanReadablePart(humanReadablePart: string) {
+  return [
+    ...[...humanReadablePart].map((character) => character.charCodeAt(0) >> 5),
+    0,
+    ...[...humanReadablePart].map((character) => character.charCodeAt(0) & 31),
+  ];
+}
+
+function calculateBech32Polymod(values: number[]) {
+  const generators = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
+  let checksum = 1;
+
+  values.forEach((value) => {
+    const top = checksum >> 25;
+    checksum = ((checksum & 0x1ffffff) << 5) ^ value;
+
+    generators.forEach((generator, index) => {
+      if ((top >> index) & 1) {
+        checksum ^= generator;
+      }
+    });
+  });
+
+  return checksum;
 }
 
 function formatWalletName(walletId: string) {

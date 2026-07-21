@@ -1,5 +1,17 @@
 const { validateNotePayload } = require("../middleware/request-validator");
 
+function getWalletAddressFromRequest(req) {
+  if (typeof req.body?.walletAddress === "string") {
+    return req.body.walletAddress;
+  }
+
+  if (typeof req.query.walletAddress === "string") {
+    return req.query.walletAddress;
+  }
+
+  return "";
+}
+
 function createNotesController(notesLedger) {
   return {
     getHealth(req, res) {
@@ -15,7 +27,9 @@ function createNotesController(notesLedger) {
     },
 
     async createNote(req, res) {
-      const { block, valid } = await notesLedger.addNote(validateNotePayload(req.body));
+      const { block, valid } = await notesLedger.addNote(validateNotePayload(req.body), {
+        walletAddress: getWalletAddressFromRequest(req),
+      });
 
       res.status(201).json({
         message: "Note anchored to the latest Cardano block through Blockfrost.",
@@ -29,14 +43,21 @@ function createNotesController(notesLedger) {
       res.json(await notesLedger.getTrashState());
     },
 
+    async getActivity(req, res) {
+      res.json(await notesLedger.getActivity(getWalletAddressFromRequest(req)));
+    },
+
     async getWalletTransactions(req, res) {
-      res.json(await notesLedger.getWalletTransactions());
+      res.json(await notesLedger.getWalletTransactions(getWalletAddressFromRequest(req)));
     },
 
     async updateNote(req, res) {
       const { block, valid } = await notesLedger.updateNote(
         req.params.id,
-        validateNotePayload(req.body)
+        validateNotePayload(req.body),
+        {
+          walletAddress: getWalletAddressFromRequest(req),
+        }
       );
 
       res.json({
@@ -48,7 +69,9 @@ function createNotesController(notesLedger) {
     },
 
     async restoreNote(req, res) {
-      const { block, valid } = await notesLedger.restoreNote(req.params.id);
+      const { block, valid } = await notesLedger.restoreNote(req.params.id, {
+        walletAddress: getWalletAddressFromRequest(req),
+      });
 
       res.json({
         message: "Note restored and the local proof chain was recalculated.",
@@ -59,7 +82,9 @@ function createNotesController(notesLedger) {
     },
 
     async permanentlyDeleteNote(req, res) {
-      const { valid } = await notesLedger.hardDeleteNote(req.params.id);
+      const { valid } = await notesLedger.hardDeleteNote(req.params.id, {
+        walletAddress: getWalletAddressFromRequest(req),
+      });
 
       res.json({
         message: "Note permanently deleted.",
@@ -69,7 +94,9 @@ function createNotesController(notesLedger) {
     },
 
     async deleteNote(req, res) {
-      const { valid } = await notesLedger.deleteNote(req.params.id);
+      const { valid } = await notesLedger.deleteNote(req.params.id, {
+        walletAddress: getWalletAddressFromRequest(req),
+      });
 
       res.json({
         message: "Note moved to trash and the local proof chain was recalculated.",
