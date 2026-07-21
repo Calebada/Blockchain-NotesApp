@@ -38,9 +38,21 @@ create table if not exists public.note_activity (
   note_id bigint,
   note_title text not null default '',
   note_tag text not null default 'General',
+  transaction_id text not null default '',
+  cardano_block_hash text not null default '',
+  cardano_block_height bigint,
   network text not null default '',
   created_at timestamptz not null default now()
 );
+
+alter table public.note_activity
+  add column if not exists transaction_id text not null default '';
+
+alter table public.note_activity
+  add column if not exists cardano_block_hash text not null default '';
+
+alter table public.note_activity
+  add column if not exists cardano_block_height bigint;
 
 create index if not exists note_activity_created_at_idx
   on public.note_activity (created_at desc);
@@ -50,6 +62,14 @@ create index if not exists note_activity_wallet_address_idx
 
 create index if not exists note_activity_note_id_idx
   on public.note_activity (note_id);
+
+create index if not exists note_activity_transaction_id_idx
+  on public.note_activity (transaction_id)
+  where transaction_id <> '';
+
+create index if not exists note_activity_cardano_block_hash_idx
+  on public.note_activity (cardano_block_hash)
+  where cardano_block_hash <> '';
 
 do $$
 declare

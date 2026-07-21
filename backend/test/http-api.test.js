@@ -24,6 +24,9 @@ function createNotesLedgerStub() {
           noteId: "1",
           noteTitle: "Wallet test",
           noteTag: "General",
+          transactionId: "c".repeat(64),
+          cardanoBlockHash: "d".repeat(64),
+          cardanoBlockHeight: 123456,
           network: "mainnet",
           createdAt: "2026-07-21T00:00:00.000Z",
         },
@@ -163,6 +166,9 @@ test("returns tracked note activity through the HTTP controller", async () => {
     assert.equal(body.walletAddress, walletAddress);
     assert.equal(body.activity[0].action, "CREATE_NOTE");
     assert.equal(body.activity[0].walletAddress, "addr_test_connected_wallet");
+    assert.equal(body.activity[0].transactionId, "c".repeat(64));
+    assert.equal(body.activity[0].cardanoBlockHash, "d".repeat(64));
+    assert.equal(body.activity[0].cardanoBlockHeight, 123456);
   }, notesLedger);
 });
 

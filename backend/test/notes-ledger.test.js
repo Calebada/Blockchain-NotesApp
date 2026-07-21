@@ -202,6 +202,17 @@ test("tracks note activity for the connected wallet", async () => {
   );
   assert.equal(activity.activity[0].walletAddress, walletAddress);
   assert.equal(activity.activity[0].noteId, created.block.id);
+  assert.equal(activity.activity[0].transactionId.length, 64);
+  assert.equal(activity.activity[0].cardanoBlockHash, latestBlock.hash);
+  assert.equal(activity.activity[0].cardanoBlockHeight, latestBlock.height);
+  assert.ok(
+    activity.activity.every(
+      (entry) =>
+        entry.transactionId &&
+        entry.cardanoBlockHash === latestBlock.hash &&
+        entry.cardanoBlockHeight === latestBlock.height
+    )
+  );
 });
 
 test("returns no activity until a wallet address is provided", async () => {

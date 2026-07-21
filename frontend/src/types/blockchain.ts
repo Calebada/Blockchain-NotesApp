@@ -101,6 +101,9 @@ export type NoteActivity = {
   noteId: string;
   noteTitle: string;
   noteTag: string;
+  transactionId: string;
+  cardanoBlockHash: string;
+  cardanoBlockHeight: number | null;
   network: string;
   createdAt: string;
 };

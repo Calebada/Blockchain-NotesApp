@@ -40,6 +40,14 @@ function getNoteDetailsFromRow(row) {
   };
 }
 
+function getTransactionDetailsFromBlock(block) {
+  return {
+    transactionId: block?.hash || "",
+    cardanoBlockHash: block?.anchor?.blockHash || "",
+    cardanoBlockHeight: block?.anchor?.blockHeight ?? null,
+  };
+}
+
 class NotesLedger {
   constructor(options = {}) {
     if (!options.client || !options.repository) {
@@ -154,6 +162,9 @@ class NotesLedger {
 
   async deleteNote(id, options = {}) {
     const latestBlock = await this.getLatestCardanoBlock();
+    const currentChain = await this.loadChain(latestBlock);
+    const block =
+      currentChain.find((chainBlock) => String(chainBlock.id) === String(id)) || null;
     const deletedRow = await this.repository.deleteNoteBlock(id);
 
     if (!deletedRow) {
@@ -165,7 +176,7 @@ class NotesLedger {
       noteId: String(id),
       deletedAt: deletedRow.deletedAt || deletedRow.deleted_at || new Date().toISOString(),
     });
-    await this.recordActivity(ACTIVITY_ACTIONS.DELETE_NOTE, deletedRow, options);
+    await this.recordActivity(ACTIVITY_ACTIONS.DELETE_NOTE, block || deletedRow, options);
 
     return {
       deletedRow,
@@ -198,6 +209,13 @@ class NotesLedger {
 
   async hardDeleteNote(id, options = {}) {
     const latestBlock = await this.getLatestCardanoBlock();
+    const [currentChain, deletedChain] = await Promise.all([
+      this.loadChain(latestBlock),
+      this.loadDeletedNotes(latestBlock),
+    ]);
+    const block = [...currentChain, ...deletedChain].find(
+      (chainBlock) => String(chainBlock.id) === String(id)
+    );
     const deletedRow = await this.repository.hardDeleteNoteBlock(id);
 
     if (!deletedRow) {
@@ -208,7 +226,11 @@ class NotesLedger {
     this.logger.logNoteTransaction("PERMANENT_DELETE_NOTE", {
       noteId: String(id),
     });
-    await this.recordActivity(ACTIVITY_ACTIONS.PERMANENT_DELETE_NOTE, deletedRow, options);
+    await this.recordActivity(
+      ACTIVITY_ACTIONS.PERMANENT_DELETE_NOTE,
+      block || deletedRow,
+      options
+    );
 
     return {
       deletedRow,
@@ -320,6 +342,7 @@ class NotesLedger {
         walletAddress,
         network: this.client.network,
         ...details,
+        ...getTransactionDetailsFromBlock(source),
       });
     } catch (error) {
       console.warn("Note activity tracking failed:", error.message);

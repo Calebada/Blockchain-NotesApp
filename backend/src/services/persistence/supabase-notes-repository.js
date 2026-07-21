@@ -21,6 +21,9 @@ function toActivityDatabaseRow(entry) {
     note_id: entry.noteId || null,
     note_title: entry.noteTitle || "",
     note_tag: entry.noteTag || "General",
+    transaction_id: entry.transactionId || "",
+    cardano_block_hash: entry.cardanoBlockHash || "",
+    cardano_block_height: entry.cardanoBlockHeight ?? null,
     network: entry.network || "",
     created_at: entry.createdAt || new Date().toISOString(),
   };
@@ -34,10 +37,16 @@ function toActivityEntry(row) {
     noteId: row.note_id ? String(row.note_id) : "",
     noteTitle: row.note_title || "",
     noteTag: row.note_tag || "General",
+    transactionId: row.transaction_id || "",
+    cardanoBlockHash: row.cardano_block_hash || "",
+    cardanoBlockHeight: row.cardano_block_height ?? null,
     network: row.network || "",
     createdAt: row.created_at,
   };
 }
+
+const ACTIVITY_COLUMNS =
+  "id,action,wallet_address,note_id,note_title,note_tag,transaction_id,cardano_block_hash,cardano_block_height,network,created_at";
 
 function createTemporaryNoteBlocks(rows, { latestBlock, network }) {
   if (!latestBlock) {
@@ -140,7 +149,7 @@ class SupabaseNotesRepository {
   async listActivity(options = {}) {
     let query = this.client
       .from("note_activity")
-      .select("id,action,wallet_address,note_id,note_title,note_tag,network,created_at")
+      .select(ACTIVITY_COLUMNS)
       .order("created_at", { ascending: false })
       .order("id", { ascending: false })
       .limit(50);
@@ -162,7 +171,7 @@ class SupabaseNotesRepository {
     const { data, error } = await this.client
       .from("note_activity")
       .insert(toActivityDatabaseRow(entry))
-      .select("id,action,wallet_address,note_id,note_title,note_tag,network,created_at")
+      .select(ACTIVITY_COLUMNS)
       .single();
 
     if (error) {
