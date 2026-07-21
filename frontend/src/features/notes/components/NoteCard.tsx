@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { PenLine, Pin, PinOff, RotateCcw, Trash2 } from 'lucide-react';
+import { TAG_COLORS, DEFAULT_TAG_COLOR } from '../constants/tagColors';
 
 interface NoteCardProps {
   id?: string;
@@ -15,6 +16,12 @@ interface NoteCardProps {
   onRestore?: (id?: string) => void;
   onHardDelete?: (id?: string) => void;
   onTogglePin?: () => void;
+}
+
+
+function getTagColor(tag?: string) {
+  if (!tag) return DEFAULT_TAG_COLOR;
+  return TAG_COLORS[tag.toLowerCase()] || DEFAULT_TAG_COLOR;
 }
 
 export default function NoteCard({
@@ -33,6 +40,7 @@ export default function NoteCard({
   onTogglePin,
 }: NoteCardProps) {
   const [isHovered, setIsHovered] = useState(false);
+  const tagColor = getTagColor(tag);
 
   return (
     <div
@@ -40,35 +48,36 @@ export default function NoteCard({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       style={{
-        backgroundColor: 'var(--bg-card)',
-        borderRadius: '12px',
-        border: '1px solid',
-        borderColor: isHovered ? 'var(--accent-orange)' : 'var(--border-light)',
-        padding: '24px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '16px',
-        height: 'fit-content',
-        position: 'relative',
-        transition: 'all 0.2s ease'
-      }}
+  background: `linear-gradient(160deg, ${tagColor.bg} 0, ${tagColor.bg} 50%, var(--bg-card) 75%)`,
+  borderRadius: '12px',
+  border: '1.5px solid',
+  borderColor: isHovered ? 'var(--accent-orange)' : tagColor.accent,
+  padding: '22px 24px 24px',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '16px',
+  height: 'fit-content',
+  position: 'relative',
+  transition: 'all 0.2s ease'
+}}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
-          <h3 className="serif-title" style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '6px' }}>
+          <h3 className="serif-title" style={{ fontSize: '19px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '6px', letterSpacing: '-0.3px' }}>
             {title || 'Untitled'}
           </h3>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-muted)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11.5px', color: 'var(--text-muted)', letterSpacing: '0.2px' }}>
             <span>{timestamp}</span>
             {tag && (
               <>
                 <span>·</span>
                 <span style={{
-                  backgroundColor: '#F3EFEA',
-                  padding: '2px 8px',
+                  backgroundColor: tagColor.bg,
+                  padding: '2px 9px',
                   borderRadius: '12px',
-                  fontWeight: 500,
-                  color: '#8C7C6D'
+                  fontWeight: 600,
+                  fontSize: '11px',
+                  color: tagColor.text
                 }}>
                   #{tag.toLowerCase()}
                 </span>

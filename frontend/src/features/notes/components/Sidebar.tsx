@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { PenSquare, Plus, Inbox, Star, Tag, Search, Trash2 } from 'lucide-react';
 import { NOTE_TAG_OPTIONS } from '../types/note';
 import type { NoteCounts } from '../types/note';
+import { TAG_COLORS } from '../constants/tagColors';
 
 interface SidebarProps {
   activeTab: string;
@@ -156,15 +157,23 @@ export default function Sidebar({ activeTab, onTabSelect, onNewNote, counts }: S
         ))}
 
         {dynamicTags.map(tag => (
-          <NavItem
-            key={tag}
-            icon={<Tag size={16} />}
-            label={`#${tag.toLowerCase()}`}
-            count={counts.tags[tag] || 0}
-            isActive={activeTab === tag.toLowerCase()}
-            onClick={() => onTabSelect(tag.toLowerCase())}
-          />
-        ))}
+  <NavItem
+    key={tag}
+    icon={
+      <span style={{
+        width: 8,
+        height: 8,
+        borderRadius: '50%',
+        backgroundColor: TAG_COLORS[tag.toLowerCase()]?.accent || '#C6B5A1',
+        display: 'inline-block'
+      }} />
+    }
+    label={`#${tag.toLowerCase()}`}
+    count={counts.tags[tag] || 0}
+    isActive={activeTab === tag.toLowerCase()}
+    onClick={() => onTabSelect(tag.toLowerCase())}
+  />
+))}
         
         {tagSearchQuery && filteredFixedNav.length === 0 && dynamicTags.length === 0 && (
           <div style={{ padding: '8px 12px', fontSize: '12px', color: '#8A8581', fontStyle: 'italic' }}>
