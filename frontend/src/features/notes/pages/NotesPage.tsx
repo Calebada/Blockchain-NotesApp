@@ -2,9 +2,11 @@ import NoteForm from "../components/NoteForm";
 import NotesList from "../components/NotesList";
 import Sidebar from "../components/Sidebar";
 import { useNotes } from "../hooks/useNotes";
+import { useWalletAuth } from "../hooks/useWalletAuth";
 
 export default function NotesPage() {
-  const notes = useNotes();
+  const walletAuth = useWalletAuth();
+  const notes = useNotes({ walletAddress: walletAuth.connectedWallet?.address });
 
   return (
     <div style={{ display: "flex" }}>
@@ -13,6 +15,7 @@ export default function NotesPage() {
         counts={notes.counts}
         onNewNote={notes.openNewNote}
         onTabSelect={notes.setActiveTab}
+        walletAuth={walletAuth}
       />
 
       <main style={{ flex: 1 }}>
@@ -68,6 +71,7 @@ export default function NotesPage() {
           error={notes.modalError}
           onSave={notes.saveNote}
           onClose={notes.closeModal}
+          walletAuth={walletAuth}
         />
       )}
     </div>

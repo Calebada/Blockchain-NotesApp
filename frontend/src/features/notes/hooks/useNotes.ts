@@ -22,7 +22,11 @@ import type {
   NoteTag,
 } from "../types/note";
 
-export function useNotes() {
+type UseNotesOptions = {
+  walletAddress?: string | null;
+};
+
+export function useNotes({ walletAddress }: UseNotesOptions = {}) {
   const [chain, setChain] = useState<ChainBlock[]>([]);
   const [trashChain, setTrashChain] = useState<ChainBlock[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -153,14 +157,23 @@ export function useNotes() {
   }, [loadWalletTransactions]);
 
   async function saveNote(values: NoteFormValues) {
+    setModalError("");
+
+    if (!editingNoteId && !walletAddress) {
+      setModalError("Connect your wallet before creating a note.");
+      return;
+    }
+
     setIsSubmitting(true);
     setModalError("");
 
     try {
+      const author = walletAddress || editingNote?.author || "Me";
+
       if (editingNoteId) {
-        await updateNote({ id: editingNoteId, author: "Me", ...values });
+        await updateNote({ id: editingNoteId, author, ...values });
       } else {
-        await addNote({ author: "Me", ...values });
+        await addNote({ author, ...values });
       }
 
       await Promise.all([loadNotes(), loadWalletTransactions()]);

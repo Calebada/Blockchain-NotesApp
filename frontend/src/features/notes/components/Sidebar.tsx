@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
 import { PenSquare, Plus, Inbox, Star, Tag, Search, Trash2 } from 'lucide-react';
 import { NOTE_TAG_OPTIONS } from '../types/note';
+import type { WalletAuthState } from '../hooks/useWalletAuth';
 import type { NoteCounts } from '../types/note';
 import { TAG_COLORS } from '../constants/tagColors';
+import WalletConnection from './WalletConnection';
 
 interface SidebarProps {
   activeTab: string;
   onTabSelect: (tab: string) => void;
   onNewNote: () => void;
   counts: NoteCounts;
+  walletAuth: WalletAuthState;
 }
 
-export default function Sidebar({ activeTab, onTabSelect, onNewNote, counts }: SidebarProps) {
+export default function Sidebar({ activeTab, onTabSelect, onNewNote, counts, walletAuth }: SidebarProps) {
   const [tagSearchQuery, setTagSearchQuery] = useState('');
 
   const fixedNav = NOTE_TAG_OPTIONS;
@@ -84,7 +87,7 @@ export default function Sidebar({ activeTab, onTabSelect, onNewNote, counts }: S
       </button>
 
 
-      <nav className="no-scrollbar" style={{ display: 'flex', flexDirection: 'column', gap: '4px', overflowY: 'auto', flex: 1 }}>
+      <nav className="no-scrollbar" style={{ display: 'flex', flexDirection: 'column', gap: '4px', overflowY: 'auto', flex: 1, minHeight: 0 }}>
         <NavItem
           icon={<Inbox size={18} />}
           label="All notes"
@@ -181,6 +184,19 @@ export default function Sidebar({ activeTab, onTabSelect, onNewNote, counts }: S
           </div>
         )}
       </nav>
+
+      <div style={{ borderTop: '1px solid var(--border-sidebar)', paddingTop: '16px', marginTop: '16px' }}>
+        <WalletConnection
+          wallets={walletAuth.wallets}
+          connectedWallet={walletAuth.connectedWallet}
+          isConnecting={walletAuth.isConnectingWallet}
+          error={walletAuth.walletAuthError}
+          onConnect={walletAuth.connectWallet}
+          onDisconnect={walletAuth.disconnectWallet}
+          compact
+          variant="sidebar"
+        />
+      </div>
     </div>
   );
 }
