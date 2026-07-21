@@ -11,6 +11,13 @@ function createNotesLedgerStub() {
     },
     getState: async () => ({ valid: true, length: 0, chain: [] }),
     getTrashState: async () => ({ valid: true, length: 0, chain: [] }),
+    getWalletTransactions: async () => ({
+      configured: true,
+      walletAddress: "addr_test_wallet",
+      totalAda: "2.500000",
+      transactionCount: 1,
+      transactions: [{ txHash: "abc", outputIndex: 0, ada: "2.500000" }],
+    }),
   };
 }
 
@@ -51,6 +58,18 @@ test("centralizes payload validation errors", async () => {
 
     assert.equal(response.status, 400);
     assert.equal(body.error, "Note content is required.");
+  });
+});
+
+test("returns live wallet transactions through the HTTP controller", async () => {
+  await withServer(async (baseUrl) => {
+    const response = await fetch(`${baseUrl}/api/wallet/transactions`);
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.walletAddress, "addr_test_wallet");
+    assert.equal(body.totalAda, "2.500000");
+    assert.equal(body.transactions[0].txHash, "abc");
   });
 });
 

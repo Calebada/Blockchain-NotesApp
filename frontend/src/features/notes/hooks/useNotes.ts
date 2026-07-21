@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { ChainBlock } from "../../../types/blockchain";
+import type {
+  ChainBlock,
+  WalletTransactionsResponse,
+} from "../../../types/blockchain";
 import {
   addNote,
   deleteNote,
   fetchChain,
   fetchTrash,
+  fetchWalletTransactions,
   getApiError,
   hardDeleteNote,
   restoreNote,
@@ -30,6 +34,10 @@ export function useNotes() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [modalError, setModalError] = useState("");
   const [pinnedNoteIds, setPinnedNoteIds] = useState<Set<string>>(new Set());
+  const [walletTransactions, setWalletTransactions] =
+    useState<WalletTransactionsResponse | null>(null);
+  const [isWalletLoading, setIsWalletLoading] = useState(true);
+  const [walletError, setWalletError] = useState("");
 
   const allNotes = useMemo<FrontendNote[]>(
     () => [...chain].reverse().map((block) => toFrontendNote(block, pinnedNoteIds)),
@@ -110,9 +118,39 @@ export function useNotes() {
     }
   }, []);
 
+  const loadWalletTransactions = useCallback(
+    async ({ silent = false }: { silent?: boolean } = {}) => {
+      if (!silent) {
+        setIsWalletLoading(true);
+      }
+
+      setWalletError("");
+
+      try {
+        setWalletTransactions(await fetchWalletTransactions());
+      } catch (requestError) {
+        setWalletError(
+          getApiError(requestError, "Unable to load live wallet transactions.")
+        );
+      } finally {
+        setIsWalletLoading(false);
+      }
+    },
+    []
+  );
+
   useEffect(() => {
     void loadNotes();
-  }, [loadNotes]);
+    void loadWalletTransactions();
+  }, [loadNotes, loadWalletTransactions]);
+
+  useEffect(() => {
+    const refreshTimer = window.setInterval(() => {
+      void loadWalletTransactions({ silent: true });
+    }, 15000);
+
+    return () => window.clearInterval(refreshTimer);
+  }, [loadWalletTransactions]);
 
   async function saveNote(values: NoteFormValues) {
     setIsSubmitting(true);
@@ -125,7 +163,7 @@ export function useNotes() {
         await addNote({ author: "Me", ...values });
       }
 
-      await loadNotes();
+      await Promise.all([loadNotes(), loadWalletTransactions()]);
       closeModal();
     } catch (requestError) {
       setModalError(getApiError(requestError, "The note could not be saved."));
@@ -172,7 +210,7 @@ export function useNotes() {
     try {
       await deleteNote(id);
       removePinnedNote(id);
-      await loadNotes();
+      await Promise.all([loadNotes(), loadWalletTransactions()]);
     } catch (requestError) {
       setGlobalError(getApiError(requestError, "The note could not be deleted."));
     }
@@ -188,7 +226,7 @@ export function useNotes() {
 
     try {
       await restoreNote(id);
-      await loadNotes();
+      await Promise.all([loadNotes(), loadWalletTransactions()]);
     } catch (requestError) {
       setGlobalError(getApiError(requestError, "The note could not be restored."));
     }
@@ -209,7 +247,7 @@ export function useNotes() {
     try {
       await hardDeleteNote(id);
       removePinnedNote(id);
-      await loadNotes();
+      await Promise.all([loadNotes(), loadWalletTransactions()]);
     } catch (requestError) {
       setGlobalError(getApiError(requestError, "The note could not be permanently deleted."));
     }
@@ -247,6 +285,7 @@ export function useNotes() {
     isLoading,
     isModalOpen,
     isSubmitting,
+    isWalletLoading,
     modalError,
     moveNoteToTrash,
     openEditNote,
@@ -258,6 +297,9 @@ export function useNotes() {
     setSearchQuery,
     title,
     togglePinnedNote,
+    walletError,
+    walletTransactions,
+    refreshWalletTransactions: loadWalletTransactions,
   };
 }
 
