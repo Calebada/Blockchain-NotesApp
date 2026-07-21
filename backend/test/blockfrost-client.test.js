@@ -6,7 +6,6 @@ test("fetches address UTXOs through the Blockfrost SDK instance", async () => {
   const client = new BlockfrostClient({
     projectId: "preprod_test_project",
     network: "preprod",
-    walletAddress: "addr_test_backend_wallet",
   });
   let requestedAddress = "";
   const expectedUtxos = [
@@ -24,8 +23,39 @@ test("fetches address UTXOs through the Blockfrost SDK instance", async () => {
     },
   };
 
-  const utxos = await client.getAddressUtxos();
+  const utxos = await client.getAddressUtxos("addr_test_connected_wallet");
 
-  assert.equal(requestedAddress, "addr_test_backend_wallet");
+  assert.equal(requestedAddress, "addr_test_connected_wallet");
   assert.deepEqual(utxos, expectedUtxos);
+});
+
+test("requires a connected wallet address for UTXO lookup", async () => {
+  const client = new BlockfrostClient({
+    projectId: "preprod_test_project",
+    network: "preprod",
+  });
+
+  await assert.rejects(
+    () => client.getAddressUtxos(),
+    (error) =>
+      error.statusCode === 400 &&
+      error.message === "A connected Cardano wallet address is required."
+  );
+});
+
+test("treats a wallet address with no known UTXOs as an empty wallet", async () => {
+  const client = new BlockfrostClient({
+    projectId: "preprod_test_project",
+    network: "preprod",
+  });
+
+  client.api = {
+    addressesUtxos: async () => {
+      const error = new Error("The requested component has not been found.");
+      error.statusCode = 404;
+      throw error;
+    },
+  };
+
+  assert.deepEqual(await client.getAddressUtxos("addr_test_empty_wallet"), []);
 });

@@ -10,6 +10,36 @@ const silentLogger = {
   logNoteTransaction() {},
 };
 
+const ACTIVITY_ACTIONS = {
+  CREATE_NOTE: "CREATE_NOTE",
+  UPDATE_NOTE: "UPDATE_NOTE",
+  DELETE_NOTE: "DELETE_NOTE",
+  RESTORE_NOTE: "RESTORE_NOTE",
+  PERMANENT_DELETE_NOTE: "PERMANENT_DELETE_NOTE",
+};
+
+function normalizeWalletAddress(walletAddress = "") {
+  return typeof walletAddress === "string" && walletAddress.trim()
+    ? walletAddress.trim()
+    : "";
+}
+
+function getNoteDetailsFromBlock(block) {
+  return {
+    noteId: block?.id ? String(block.id) : "",
+    noteTitle: block?.note?.title || "",
+    noteTag: block?.note?.tag || "General",
+  };
+}
+
+function getNoteDetailsFromRow(row) {
+  return {
+    noteId: row?.id ? String(row.id) : "",
+    noteTitle: row?.title || "",
+    noteTag: row?.tag || "General",
+  };
+}
+
 class NotesLedger {
   constructor(options = {}) {
     if (!options.client || !options.repository) {
@@ -59,7 +89,7 @@ class NotesLedger {
     });
   }
 
-  async addNote({ author, title, tag, content }) {
+  async addNote({ author, title, tag, content }, options = {}) {
     const latestBlock = await this.getLatestCardanoBlock();
     const chain = await this.loadChain(latestBlock);
     const previousHash = chain.length > 0 ? chain[chain.length - 1].hash : latestBlock.hash;
@@ -85,7 +115,8 @@ class NotesLedger {
     const savedBlock = await this.repository.saveNoteBlock(block);
     const updatedChain = [...chain, savedBlock];
     this.logger.logBlockTransaction("CREATE_NOTE", savedBlock);
-    await this.logWalletUtxos();
+    await this.recordActivity(ACTIVITY_ACTIONS.CREATE_NOTE, savedBlock, options);
+    await this.logWalletUtxos(options.walletAddress);
 
     return {
       block: savedBlock,
@@ -93,7 +124,7 @@ class NotesLedger {
     };
   }
 
-  async updateNote(id, { author, title, tag, content }) {
+  async updateNote(id, { author, title, tag, content }, options = {}) {
     const latestBlock = await this.getLatestCardanoBlock();
     const updatedRow = await this.repository.updateNoteBlock(id, {
       author,
@@ -111,7 +142,8 @@ class NotesLedger {
 
     if (block) {
       this.logger.logBlockTransaction("UPDATE_NOTE", block);
-      await this.logWalletUtxos();
+      await this.recordActivity(ACTIVITY_ACTIONS.UPDATE_NOTE, block, options);
+      await this.logWalletUtxos(options.walletAddress);
     }
 
     return {
@@ -120,7 +152,7 @@ class NotesLedger {
     };
   }
 
-  async deleteNote(id) {
+  async deleteNote(id, options = {}) {
     const latestBlock = await this.getLatestCardanoBlock();
     const deletedRow = await this.repository.deleteNoteBlock(id);
 
@@ -133,6 +165,7 @@ class NotesLedger {
       noteId: String(id),
       deletedAt: deletedRow.deletedAt || deletedRow.deleted_at || new Date().toISOString(),
     });
+    await this.recordActivity(ACTIVITY_ACTIONS.DELETE_NOTE, deletedRow, options);
 
     return {
       deletedRow,
@@ -140,7 +173,7 @@ class NotesLedger {
     };
   }
 
-  async restoreNote(id) {
+  async restoreNote(id, options = {}) {
     const latestBlock = await this.getLatestCardanoBlock();
     const restoredRow = await this.repository.restoreNoteBlock(id);
 
@@ -153,7 +186,8 @@ class NotesLedger {
 
     if (block) {
       this.logger.logBlockTransaction("RESTORE_NOTE", block);
-      await this.logWalletUtxos();
+      await this.recordActivity(ACTIVITY_ACTIONS.RESTORE_NOTE, block, options);
+      await this.logWalletUtxos(options.walletAddress);
     }
 
     return {
@@ -162,7 +196,7 @@ class NotesLedger {
     };
   }
 
-  async hardDeleteNote(id) {
+  async hardDeleteNote(id, options = {}) {
     const latestBlock = await this.getLatestCardanoBlock();
     const deletedRow = await this.repository.hardDeleteNoteBlock(id);
 
@@ -174,6 +208,7 @@ class NotesLedger {
     this.logger.logNoteTransaction("PERMANENT_DELETE_NOTE", {
       noteId: String(id),
     });
+    await this.recordActivity(ACTIVITY_ACTIONS.PERMANENT_DELETE_NOTE, deletedRow, options);
 
     return {
       deletedRow,
@@ -207,8 +242,21 @@ class NotesLedger {
     };
   }
 
-  async getWalletTransactions() {
-    const walletAddress = this.client.walletAddress || "";
+  async getActivity(walletAddressOverride = "") {
+    const walletAddress = normalizeWalletAddress(walletAddressOverride);
+
+    return {
+      provider: this.provider,
+      network: this.client.network,
+      walletAddress,
+      activity: walletAddress
+        ? await this.repository.listActivity({ walletAddress })
+        : [],
+    };
+  }
+
+  async getWalletTransactions(walletAddressOverride = "") {
+    const walletAddress = normalizeWalletAddress(walletAddressOverride);
 
     if (!walletAddress) {
       return {
@@ -250,11 +298,31 @@ class NotesLedger {
     return true;
   }
 
-  async logWalletUtxos() {
+  async logWalletUtxos(walletAddress) {
     try {
-      await this.logWalletUtxosAfterTransaction(this.client);
+      await this.logWalletUtxosAfterTransaction(
+        this.client,
+        normalizeWalletAddress(walletAddress)
+      );
     } catch (error) {
       console.warn("Wallet UTXO lookup failed:", error.message);
+    }
+  }
+
+  async recordActivity(action, source, options = {}) {
+    const walletAddress = normalizeWalletAddress(options.walletAddress);
+    const details =
+      source?.note || source?.anchor ? getNoteDetailsFromBlock(source) : getNoteDetailsFromRow(source);
+
+    try {
+      await this.repository.recordActivity({
+        action,
+        walletAddress,
+        network: this.client.network,
+        ...details,
+      });
+    } catch (error) {
+      console.warn("Note activity tracking failed:", error.message);
     }
   }
 }

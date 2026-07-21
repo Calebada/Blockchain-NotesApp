@@ -78,8 +78,7 @@ export default function NotesList({
           </span>
         </div>
 
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <div style={{
             display: 'flex',
             alignItems: 'center',

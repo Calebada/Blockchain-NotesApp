@@ -86,3 +86,28 @@ export type WalletTransactionsResponse = {
   transactionCount: number;
   transactions: WalletTransaction[];
 };
+
+export type NoteActivityAction =
+  | "CREATE_NOTE"
+  | "UPDATE_NOTE"
+  | "DELETE_NOTE"
+  | "RESTORE_NOTE"
+  | "PERMANENT_DELETE_NOTE";
+
+export type NoteActivity = {
+  id: string;
+  action: NoteActivityAction;
+  walletAddress: string;
+  noteId: string;
+  noteTitle: string;
+  noteTag: string;
+  network: string;
+  createdAt: string;
+};
+
+export type NoteActivityResponse = {
+  provider: BlockfrostProvider;
+  network: string;
+  walletAddress: string;
+  activity: NoteActivity[];
+};

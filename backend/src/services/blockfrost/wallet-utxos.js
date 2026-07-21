@@ -68,17 +68,15 @@ function summarizeWalletUtxos(rawUtxos) {
   };
 }
 
-async function getWalletUtxoSnapshot(blockfrostClient, walletAddress = blockfrostClient.walletAddress) {
+async function getWalletUtxoSnapshot(blockfrostClient, walletAddress) {
   const rawUtxos = await blockfrostClient.getAddressUtxos(walletAddress);
 
   return summarizeWalletUtxos(rawUtxos);
 }
 
-async function logWalletUtxosAfterTransaction(blockfrostClient, walletAddress = blockfrostClient.walletAddress) {
+async function logWalletUtxosAfterTransaction(blockfrostClient, walletAddress = "") {
   if (!walletAddress) {
-    console.warn(
-      "Wallet UTXO lookup skipped: CARDANO_BACKEND_WALLET_ADDRESS is not configured."
-    );
+    console.warn("Wallet UTXO lookup skipped: no connected wallet address was provided.");
     return;
   }
 

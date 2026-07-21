@@ -19,6 +19,7 @@ function createLedger() {
     network: "mainnet",
     isConfigured: () => true,
     getLatestBlock: async () => latestBlock,
+    getAddressUtxos: async () => [],
   };
   const logger = {
     logBlockTransaction() {},
@@ -76,4 +77,142 @@ test("returns a typed not-found error from the application layer", async () => {
     () => ledger.updateNote("missing", { author: "Ada", content: "No note" }),
     (error) => error.statusCode === 404 && error.message === "Note not found."
   );
+});
+
+test("uses a connected wallet address when fetching wallet transactions", async () => {
+  const requestedWalletAddresses = [];
+  const ledger = new NotesLedger({
+    client: {
+      network: "mainnet",
+      isConfigured: () => true,
+      getLatestBlock: async () => latestBlock,
+      getAddressUtxos: async (walletAddress) => {
+        requestedWalletAddresses.push(walletAddress);
+
+        return [
+          {
+            tx_hash: "abc",
+            output_index: 0,
+            amount: [{ unit: "lovelace", quantity: "1000000" }],
+          },
+        ];
+      },
+    },
+    logger: {
+      logBlockTransaction() {},
+      logNoteTransaction() {},
+    },
+    logWalletUtxosAfterTransaction: async () => {},
+    repository: new MemoryNotesRepository(),
+  });
+
+  const walletTransactions = await ledger.getWalletTransactions("addr_test_connected_wallet");
+
+  assert.deepEqual(requestedWalletAddresses, ["addr_test_connected_wallet"]);
+  assert.equal(walletTransactions.walletAddress, "addr_test_connected_wallet");
+  assert.equal(walletTransactions.totalAda, "1.000000");
+});
+
+test("uses the connected wallet address for post-mutation UTXO logging", async () => {
+  const requestedWalletAddresses = [];
+  const ledger = new NotesLedger({
+    client: {
+      network: "mainnet",
+      isConfigured: () => true,
+      getLatestBlock: async () => latestBlock,
+    },
+    logger: {
+      logBlockTransaction() {},
+      logNoteTransaction() {},
+    },
+    logWalletUtxosAfterTransaction: async (_client, walletAddress) => {
+      requestedWalletAddresses.push(walletAddress);
+    },
+    repository: new MemoryNotesRepository(),
+  });
+  const walletAddress = "addr_test_connected_wallet";
+  const created = await ledger.addNote(
+    {
+      author: walletAddress,
+      title: "Connected wallet",
+      tag: "General",
+      content: "Create with connected wallet.",
+    },
+    { walletAddress }
+  );
+
+  await ledger.updateNote(
+    created.block.id,
+    {
+      author: walletAddress,
+      title: "Connected wallet updated",
+      tag: "General",
+      content: "Update with connected wallet.",
+    },
+    { walletAddress }
+  );
+  await ledger.deleteNote(created.block.id);
+  await ledger.restoreNote(created.block.id, { walletAddress });
+
+  assert.deepEqual(requestedWalletAddresses, [
+    walletAddress,
+    walletAddress,
+    walletAddress,
+  ]);
+});
+
+test("tracks note activity for the connected wallet", async () => {
+  const ledger = createLedger();
+  const walletAddress = "addr_test_connected_wallet";
+  const created = await ledger.addNote(
+    {
+      author: walletAddress,
+      title: "Tracked note",
+      tag: "Work",
+      content: "Create an activity entry.",
+    },
+    { walletAddress }
+  );
+
+  await ledger.updateNote(
+    created.block.id,
+    {
+      author: walletAddress,
+      title: "Tracked note updated",
+      tag: "Ideas",
+      content: "Update activity entry.",
+    },
+    { walletAddress }
+  );
+  await ledger.deleteNote(created.block.id, { walletAddress });
+  await ledger.restoreNote(created.block.id, { walletAddress });
+  await ledger.hardDeleteNote(created.block.id, { walletAddress });
+
+  const activity = await ledger.getActivity(walletAddress);
+
+  assert.deepEqual(
+    activity.activity.map((entry) => entry.action),
+    [
+      "PERMANENT_DELETE_NOTE",
+      "RESTORE_NOTE",
+      "DELETE_NOTE",
+      "UPDATE_NOTE",
+      "CREATE_NOTE",
+    ]
+  );
+  assert.equal(activity.activity[0].walletAddress, walletAddress);
+  assert.equal(activity.activity[0].noteId, created.block.id);
+});
+
+test("returns no activity until a wallet address is provided", async () => {
+  const ledger = createLedger();
+
+  await ledger.addNote({
+    author: "addr_test_connected_wallet",
+    title: "Hidden until scoped",
+    tag: "Work",
+    content: "Activity requires a wallet.",
+  });
+
+  assert.deepEqual((await ledger.getActivity()).activity, []);
 });

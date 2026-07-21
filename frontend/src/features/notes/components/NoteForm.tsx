@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
+import type { WalletAuthState } from '../hooks/useWalletAuth';
+import WalletConnection from './WalletConnection';
 import { NOTE_TAG_OPTIONS } from '../types/note';
 import type { NoteFormValues, NoteTag } from '../types/note';
 
@@ -9,6 +11,7 @@ interface NoteFormProps {
   error?: string;
   onSave: (values: NoteFormValues) => void;
   onClose: () => void;
+  walletAuth: WalletAuthState;
 }
 
 export default function NoteForm({
@@ -16,12 +19,15 @@ export default function NoteForm({
   isSubmitting,
   error,
   onSave,
-  onClose
+  onClose,
+  walletAuth
 }: NoteFormProps) {
   const isEditing = Boolean(initialValues);
+  const requiresWallet = !isEditing;
   const [title, setTitle] = useState(initialValues?.title || '');
   const [tag, setTag] = useState<NoteTag>(initialValues?.tag || 'General');
   const [content, setContent] = useState(initialValues?.content || '');
+  const canSubmit = Boolean(content.trim()) && (!requiresWallet || walletAuth.isWalletConnected);
 
 
   const [focusedField, setFocusedField] = useState<string | null>(null);
@@ -104,6 +110,17 @@ export default function NoteForm({
 
 
         <div style={{ padding: '0 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {requiresWallet && (
+            <WalletConnection
+              wallets={walletAuth.wallets}
+              connectedWallet={walletAuth.connectedWallet}
+              isConnecting={walletAuth.isConnectingWallet}
+              error={walletAuth.walletAuthError}
+              onConnect={walletAuth.connectWallet}
+              onDisconnect={walletAuth.disconnectWallet}
+            />
+          )}
+
           <div>
             <label style={getLabelStyle()}>Title</label>
             <input
@@ -195,7 +212,7 @@ export default function NoteForm({
           </button>
           <button
             onClick={() => onSave({ title, tag, content })}
-            disabled={isSubmitting || !content.trim()}
+            disabled={isSubmitting || !canSubmit}
             style={{
               padding: '10px 16px',
               borderRadius: '6px',
@@ -203,12 +220,12 @@ export default function NoteForm({
               backgroundColor: '#221811',
               color: '#FFFFFF',
               fontWeight: 500,
-              cursor: content.trim() ? 'pointer' : 'not-allowed',
+              cursor: canSubmit ? 'pointer' : 'not-allowed',
               fontSize: '14px',
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              opacity: content.trim() ? 1 : 0.7
+              opacity: canSubmit ? 1 : 0.7
             }}
           >
             {isSubmitting && <Loader2 size={16} className="animate-spin" />}
