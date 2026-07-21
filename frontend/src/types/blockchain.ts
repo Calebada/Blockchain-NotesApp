@@ -59,3 +59,30 @@ export type ChainResponse = {
   latestBlock: CardanoBlock;
   chain: ChainBlock[];
 };
+
+export type WalletAsset = {
+  unit: string;
+  quantity: string;
+};
+
+export type WalletTransaction = {
+  txHash: string;
+  txHashShort: string;
+  outputIndex: number;
+  ada: string;
+  lovelaces: string;
+  assetCount: number;
+  assets: WalletAsset[];
+};
+
+export type WalletTransactionsResponse = {
+  provider: BlockfrostProvider;
+  network: string;
+  configured: boolean;
+  walletAddress: string;
+  fetchedAt: string;
+  totalAda: string;
+  totalLovelaces: string;
+  transactionCount: number;
+  transactions: WalletTransaction[];
+};

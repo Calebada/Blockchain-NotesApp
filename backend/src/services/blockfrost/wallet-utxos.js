@@ -44,6 +44,36 @@ function calculateTotalLovelaces(rawUtxos) {
   }, 0n);
 }
 
+function summarizeWalletUtxos(rawUtxos) {
+  const totalLovelaces = calculateTotalLovelaces(rawUtxos);
+
+  return {
+    totalAda: formatLovelaceToAda(totalLovelaces),
+    totalLovelaces: totalLovelaces.toString(),
+    transactionCount: rawUtxos.length,
+    transactions: rawUtxos.map((utxo) => {
+      const lovelaces = findLovelaceQuantity(utxo);
+      const assets = utxo.amount || [];
+
+      return {
+        txHash: utxo.tx_hash,
+        txHashShort: truncateHash(utxo.tx_hash),
+        outputIndex: utxo.output_index,
+        ada: formatLovelaceToAda(lovelaces),
+        lovelaces: lovelaces.toString(),
+        assetCount: assets.length,
+        assets,
+      };
+    }),
+  };
+}
+
+async function getWalletUtxoSnapshot(blockfrostClient, walletAddress = blockfrostClient.walletAddress) {
+  const rawUtxos = await blockfrostClient.getAddressUtxos(walletAddress);
+
+  return summarizeWalletUtxos(rawUtxos);
+}
+
 async function logWalletUtxosAfterTransaction(blockfrostClient, walletAddress = blockfrostClient.walletAddress) {
   if (!walletAddress) {
     console.warn(
@@ -64,7 +94,9 @@ async function logWalletUtxosAfterTransaction(blockfrostClient, walletAddress = 
 module.exports = {
   calculateTotalLovelaces,
   formatLovelaceToAda,
+  getWalletUtxoSnapshot,
   logWalletUtxosAfterTransaction,
   parseWalletUtxos,
+  summarizeWalletUtxos,
   truncateHash,
 };

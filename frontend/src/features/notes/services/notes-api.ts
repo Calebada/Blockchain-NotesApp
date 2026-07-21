@@ -1,6 +1,9 @@
 import axios, { AxiosError } from "axios";
 import { API_BASE_URL } from "../../../config/api";
-import type { ChainResponse } from "../../../types/blockchain";
+import type {
+  ChainResponse,
+  WalletTransactionsResponse,
+} from "../../../types/blockchain";
 import type { CreateNoteRequest, UpdateNoteRequest } from "../types/note";
 
 type ApiError = {
@@ -14,6 +17,13 @@ export async function fetchChain() {
 
 export async function fetchTrash() {
   const response = await axios.get<ChainResponse>(`${API_BASE_URL}/notes/trash`);
+  return response.data;
+}
+
+export async function fetchWalletTransactions() {
+  const response = await axios.get<WalletTransactionsResponse>(
+    `${API_BASE_URL}/wallet/transactions`
+  );
   return response.data;
 }
 

@@ -1,6 +1,7 @@
 const { AppError } = require("../common/app-error");
 const { createNoteBlock, isNoteBlockValid } = require("../domain/note-block");
 const {
+  getWalletUtxoSnapshot,
   logWalletUtxosAfterTransaction,
 } = require("../services/blockfrost/wallet-utxos");
 
@@ -203,6 +204,35 @@ class NotesLedger {
       latestBlock,
       length: chain.length,
       chain,
+    };
+  }
+
+  async getWalletTransactions() {
+    const walletAddress = this.client.walletAddress || "";
+
+    if (!walletAddress) {
+      return {
+        provider: this.provider,
+        network: this.client.network,
+        configured: false,
+        walletAddress: "",
+        fetchedAt: new Date().toISOString(),
+        totalAda: "0.000000",
+        totalLovelaces: "0",
+        transactionCount: 0,
+        transactions: [],
+      };
+    }
+
+    const snapshot = await getWalletUtxoSnapshot(this.client, walletAddress);
+
+    return {
+      provider: this.provider,
+      network: this.client.network,
+      configured: true,
+      walletAddress,
+      fetchedAt: new Date().toISOString(),
+      ...snapshot,
     };
   }
 

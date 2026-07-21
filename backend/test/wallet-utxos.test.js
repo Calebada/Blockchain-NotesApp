@@ -4,6 +4,7 @@ const {
   calculateTotalLovelaces,
   formatLovelaceToAda,
   parseWalletUtxos,
+  summarizeWalletUtxos,
   truncateHash,
 } = require("../src/services/blockfrost/wallet-utxos");
 
@@ -48,4 +49,31 @@ test("formats lovelaces as ADA without floating point drift", () => {
   assert.equal(formatLovelaceToAda("1234567", 2), "1.23");
   assert.equal(formatLovelaceToAda("1235000", 2), "1.24");
   assert.equal(truncateHash("1234567890abcdef"), "1234567890abcdef");
+});
+
+test("summarizes wallet UTXOs for API responses", () => {
+  const rawUtxos = [
+    {
+      tx_hash: "6196f366111111111111111111111111111111111111111111111111fa8458c",
+      output_index: 0,
+      amount: [{ unit: "lovelace", quantity: "2500000" }],
+    },
+  ];
+
+  assert.deepEqual(summarizeWalletUtxos(rawUtxos), {
+    totalAda: "2.500000",
+    totalLovelaces: "2500000",
+    transactionCount: 1,
+    transactions: [
+      {
+        txHash: "6196f366111111111111111111111111111111111111111111111111fa8458c",
+        txHashShort: "6196f366...fa8458c",
+        outputIndex: 0,
+        ada: "2.500000",
+        lovelaces: "2500000",
+        assetCount: 1,
+        assets: [{ unit: "lovelace", quantity: "2500000" }],
+      },
+    ],
+  });
 });
