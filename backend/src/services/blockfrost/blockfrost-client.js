@@ -80,6 +80,36 @@ class BlockfrostClient {
       throw normalizedError;
     }
   }
+
+  async getLatestProtocolParameters() {
+    this.assertConfigured();
+
+    try {
+      return await this.api.epochsLatestParameters();
+    } catch (error) {
+      throw this.normalizeSdkError(error);
+    }
+  }
+
+  async submitTransaction(transactionHex) {
+    this.assertConfigured();
+
+    try {
+      return await this.api.txSubmit(transactionHex);
+    } catch (error) {
+      throw this.normalizeSdkError(error);
+    }
+  }
+
+  async getTransaction(transactionHash) {
+    this.assertConfigured();
+
+    try {
+      return await this.api.txs(transactionHash);
+    } catch (error) {
+      throw this.normalizeSdkError(error);
+    }
+  }
 }
 
 module.exports = {

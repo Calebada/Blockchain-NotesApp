@@ -1,7 +1,9 @@
 export type CardanoWalletApi = {
+  getUtxos: () => Promise<string[] | null>;
   getUsedAddresses: () => Promise<string[]>;
   getChangeAddress: () => Promise<string>;
   getRewardAddresses?: () => Promise<string[]>;
+  signTx: (transaction: string, partialSign?: boolean) => Promise<string>;
 };
 
 export type CardanoWalletProvider = {

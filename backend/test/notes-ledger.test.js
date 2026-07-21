@@ -16,7 +16,7 @@ const latestBlock = {
 
 function createLedger() {
   const client = {
-    network: "mainnet",
+    network: "preprod",
     isConfigured: () => true,
     getLatestBlock: async () => latestBlock,
     getAddressUtxos: async () => [],
@@ -83,7 +83,7 @@ test("uses a connected wallet address when fetching wallet transactions", async 
   const requestedWalletAddresses = [];
   const ledger = new NotesLedger({
     client: {
-      network: "mainnet",
+      network: "preprod",
       isConfigured: () => true,
       getLatestBlock: async () => latestBlock,
       getAddressUtxos: async (walletAddress) => {
@@ -117,7 +117,7 @@ test("uses the connected wallet address for post-mutation UTXO logging", async (
   const requestedWalletAddresses = [];
   const ledger = new NotesLedger({
     client: {
-      network: "mainnet",
+      network: "preprod",
       isConfigured: () => true,
       getLatestBlock: async () => latestBlock,
     },
@@ -202,17 +202,66 @@ test("tracks note activity for the connected wallet", async () => {
   );
   assert.equal(activity.activity[0].walletAddress, walletAddress);
   assert.equal(activity.activity[0].noteId, created.block.id);
-  assert.equal(activity.activity[0].transactionId.length, 64);
-  assert.equal(activity.activity[0].cardanoBlockHash, latestBlock.hash);
-  assert.equal(activity.activity[0].cardanoBlockHeight, latestBlock.height);
+  assert.equal(activity.activity[0].proofHash.length, 64);
+  assert.equal(activity.activity[0].cardanoTxHash, "");
+  assert.equal(activity.activity[0].confirmationStatus, "Failed");
+  assert.equal(activity.activity[0].cardanoBlockHash, "");
+  assert.equal(activity.activity[0].cardanoBlockHeight, null);
   assert.ok(
     activity.activity.every(
       (entry) =>
-        entry.transactionId &&
-        entry.cardanoBlockHash === latestBlock.hash &&
-        entry.cardanoBlockHeight === latestBlock.height
+        entry.proofHash &&
+        entry.cardanoTxHash === "" &&
+        entry.confirmationStatus === "Failed"
     )
   );
+});
+
+test("confirms submitted Cardano transactions when activity is loaded", async () => {
+  const repository = new MemoryNotesRepository();
+  const cardanoTxHash = "b".repeat(64);
+  const ledger = new NotesLedger({
+    client: {
+      network: "preprod",
+      isConfigured: () => true,
+      getLatestBlock: async () => latestBlock,
+      getTransaction: async () => ({
+        block: "c".repeat(64),
+        block_height: 987654,
+        block_time: 1_700_000_100,
+      }),
+    },
+    logger: {
+      logBlockTransaction() {},
+      logNoteTransaction() {},
+    },
+    logWalletUtxosAfterTransaction: async () => {},
+    repository,
+  });
+  const walletAddress = "addr_test_connected_wallet";
+
+  await ledger.addNote(
+    {
+      author: walletAddress,
+      title: "Confirmed proof",
+      tag: "Work",
+      content: "Track the real transaction.",
+    },
+    {
+      walletAddress,
+      proofHash: "a".repeat(64),
+      cardanoTxHash,
+      confirmationStatus: "Pending",
+      validUntilSlot: latestBlock.slot + 3600,
+    }
+  );
+
+  const [entry] = (await ledger.getActivity(walletAddress)).activity;
+  assert.equal(entry.proofHash, "a".repeat(64));
+  assert.equal(entry.cardanoTxHash, cardanoTxHash);
+  assert.equal(entry.confirmationStatus, "Confirmed");
+  assert.equal(entry.cardanoBlockHash, "c".repeat(64));
+  assert.equal(entry.cardanoBlockHeight, 987654);
 });
 
 test("returns no activity until a wallet address is provided", async () => {

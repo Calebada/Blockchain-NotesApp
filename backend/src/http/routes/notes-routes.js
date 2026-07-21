@@ -7,7 +7,7 @@ function asyncHandler(handler) {
   };
 }
 
-function createNotesRouter(notesLedger) {
+function createNotesRouter(notesLedger, noteTransactionService) {
   const router = express.Router();
   const controller = createNotesController(notesLedger);
 
@@ -16,6 +16,18 @@ function createNotesRouter(notesLedger) {
   router.get("/notes/trash", asyncHandler(controller.getTrash));
   router.get("/activity", asyncHandler(controller.getActivity));
   router.get("/wallet/transactions", asyncHandler(controller.getWalletTransactions));
+  router.post(
+    "/transactions/prepare",
+    asyncHandler(async (req, res) => {
+      res.json(await noteTransactionService.prepare(req.body));
+    })
+  );
+  router.post(
+    "/transactions/submit",
+    asyncHandler(async (req, res) => {
+      res.status(202).json(await noteTransactionService.submit(req.body));
+    })
+  );
   router.post("/notes", asyncHandler(controller.createNote));
   router.put("/notes/:id", asyncHandler(controller.updateNote));
   router.post("/notes/:id/restore", asyncHandler(controller.restoreNote));

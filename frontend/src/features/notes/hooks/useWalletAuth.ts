@@ -5,6 +5,11 @@ import type {
   ConnectedWallet,
   WalletOption,
 } from "../../../types/cardano-wallet";
+import type { BlockchainProof, NoteTransactionIntent } from "../../../types/blockchain";
+import {
+  prepareNoteTransaction,
+  submitNoteTransaction,
+} from "../services/notes-api";
 
 const CONNECTED_WALLET_STORAGE_KEY = "notetify.connectedWalletId";
 const BECH32_CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
@@ -70,6 +75,40 @@ export function useWalletAuth() {
     window.localStorage.removeItem(CONNECTED_WALLET_STORAGE_KEY);
   }, []);
 
+  const publishNoteProof = useCallback(
+    async (intent: NoteTransactionIntent): Promise<BlockchainProof> => {
+      if (!connectedWallet) {
+        throw new Error("Connect your Preprod wallet before changing a note.");
+      }
+
+      const provider = getWalletProvider(connectedWallet.id);
+
+      if (!provider) {
+        throw new Error("The connected wallet is no longer available in this browser.");
+      }
+
+      const api = await provider.enable();
+      const utxos = (await api.getUtxos()) || [];
+      const changeAddress = await api.getChangeAddress();
+      const prepared = await prepareNoteTransaction({
+        ...intent,
+        walletAddress: connectedWallet.address,
+        utxos,
+        changeAddress,
+      });
+      const witnessSet = await api.signTx(prepared.unsignedTx, true);
+      const submitted = await submitNoteTransaction(prepared.unsignedTx, witnessSet);
+
+      return {
+        proofHash: prepared.proofHash,
+        cardanoTxHash: submitted.cardanoTxHash,
+        confirmationStatus: "Pending",
+        validUntilSlot: prepared.validUntilSlot,
+      };
+    },
+    [connectedWallet]
+  );
+
   useEffect(() => {
     const detectedWallets = refreshWallets();
     const storedWalletId = window.localStorage.getItem(CONNECTED_WALLET_STORAGE_KEY);
@@ -105,6 +144,7 @@ export function useWalletAuth() {
       disconnectWallet,
       isConnectingWallet,
       isWalletConnected: Boolean(connectedWallet),
+      publishNoteProof,
       refreshWallets,
       walletAuthError,
       wallets,
@@ -114,6 +154,7 @@ export function useWalletAuth() {
       connectWallet,
       disconnectWallet,
       isConnectingWallet,
+      publishNoteProof,
       refreshWallets,
       walletAuthError,
       wallets,

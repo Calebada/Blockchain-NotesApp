@@ -101,11 +101,37 @@ export type NoteActivity = {
   noteId: string;
   noteTitle: string;
   noteTag: string;
-  transactionId: string;
+  proofHash: string;
+  cardanoTxHash: string;
+  confirmationStatus: "Pending" | "Confirmed" | "Failed";
   cardanoBlockHash: string;
   cardanoBlockHeight: number | null;
+  validUntilSlot: number | null;
+  confirmedAt: string | null;
   network: string;
   createdAt: string;
+};
+
+export type NoteTransactionIntent = {
+  action: NoteActivityAction;
+  noteId?: string;
+  title?: string;
+  tag?: string;
+  content?: string;
+};
+
+export type BlockchainProof = {
+  proofHash: string;
+  cardanoTxHash: string;
+  confirmationStatus: "Pending";
+  validUntilSlot: number;
+};
+
+export type PreparedNoteTransaction = {
+  unsignedTx: string;
+  proofHash: string;
+  validUntilSlot: number;
+  network: "preprod";
 };
 
 export type NoteActivityResponse = {

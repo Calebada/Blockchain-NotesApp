@@ -21,9 +21,13 @@ function toActivityDatabaseRow(entry) {
     note_id: entry.noteId || null,
     note_title: entry.noteTitle || "",
     note_tag: entry.noteTag || "General",
-    transaction_id: entry.transactionId || "",
+    proof_hash: entry.proofHash || "",
+    cardano_tx_hash: entry.cardanoTxHash || "",
+    confirmation_status: entry.confirmationStatus || "Failed",
     cardano_block_hash: entry.cardanoBlockHash || "",
     cardano_block_height: entry.cardanoBlockHeight ?? null,
+    valid_until_slot: entry.validUntilSlot ?? null,
+    confirmed_at: entry.confirmedAt || null,
     network: entry.network || "",
     created_at: entry.createdAt || new Date().toISOString(),
   };
@@ -37,16 +41,20 @@ function toActivityEntry(row) {
     noteId: row.note_id ? String(row.note_id) : "",
     noteTitle: row.note_title || "",
     noteTag: row.note_tag || "General",
-    transactionId: row.transaction_id || "",
+    proofHash: row.proof_hash || "",
+    cardanoTxHash: row.cardano_tx_hash || "",
+    confirmationStatus: row.confirmation_status || "Failed",
     cardanoBlockHash: row.cardano_block_hash || "",
     cardanoBlockHeight: row.cardano_block_height ?? null,
+    validUntilSlot: row.valid_until_slot ?? null,
+    confirmedAt: row.confirmed_at || null,
     network: row.network || "",
     createdAt: row.created_at,
   };
 }
 
 const ACTIVITY_COLUMNS =
-  "id,action,wallet_address,note_id,note_title,note_tag,transaction_id,cardano_block_hash,cardano_block_height,network,created_at";
+  "id,action,wallet_address,note_id,note_title,note_tag,proof_hash,cardano_tx_hash,confirmation_status,cardano_block_hash,cardano_block_height,valid_until_slot,confirmed_at,network,created_at";
 
 function createTemporaryNoteBlocks(rows, { latestBlock, network }) {
   if (!latestBlock) {
@@ -176,6 +184,36 @@ class SupabaseNotesRepository {
 
     if (error) {
       throw createStoreError("Unable to save note activity to Supabase", error);
+    }
+
+    return toActivityEntry(data);
+  }
+
+  async updateActivity(id, updates) {
+    const databaseUpdates = {};
+
+    if (updates.confirmationStatus) {
+      databaseUpdates.confirmation_status = updates.confirmationStatus;
+    }
+    if (updates.cardanoBlockHash !== undefined) {
+      databaseUpdates.cardano_block_hash = updates.cardanoBlockHash;
+    }
+    if (updates.cardanoBlockHeight !== undefined) {
+      databaseUpdates.cardano_block_height = updates.cardanoBlockHeight;
+    }
+    if (updates.confirmedAt !== undefined) {
+      databaseUpdates.confirmed_at = updates.confirmedAt;
+    }
+
+    const { data, error } = await this.client
+      .from("note_activity")
+      .update(databaseUpdates)
+      .eq("id", id)
+      .select(ACTIVITY_COLUMNS)
+      .single();
+
+    if (error) {
+      throw createStoreError("Unable to update note activity in Supabase", error);
     }
 
     return toActivityEntry(data);

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
+  BlockchainProof,
   ChainBlock,
   NoteActivity,
+  NoteTransactionIntent,
   WalletTransactionsResponse,
 } from "../../../types/blockchain";
 import {
@@ -26,9 +28,10 @@ import type {
 
 type UseNotesOptions = {
   walletAddress?: string | null;
+  publishNoteProof?: (intent: NoteTransactionIntent) => Promise<BlockchainProof>;
 };
 
-export function useNotes({ walletAddress }: UseNotesOptions = {}) {
+export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = {}) {
   const [chain, setChain] = useState<ChainBlock[]>([]);
   const [trashChain, setTrashChain] = useState<ChainBlock[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -173,16 +176,17 @@ export function useNotes({ walletAddress }: UseNotesOptions = {}) {
   useEffect(() => {
     const refreshTimer = window.setInterval(() => {
       void loadWalletTransactions({ silent: true });
+      void loadActivity();
     }, 15000);
 
     return () => window.clearInterval(refreshTimer);
-  }, [loadWalletTransactions]);
+  }, [loadActivity, loadWalletTransactions]);
 
   async function saveNote(values: NoteFormValues) {
     setModalError("");
 
-    if (!editingNoteId && !walletAddress) {
-      setModalError("Connect your wallet before creating a note.");
+    if (!walletAddress || !publishNoteProof) {
+      setModalError("Connect your Preprod wallet before changing a note.");
       return;
     }
 
@@ -191,11 +195,22 @@ export function useNotes({ walletAddress }: UseNotesOptions = {}) {
 
     try {
       const author = walletAddress || editingNote?.author || "Me";
+      const chainProof = await publishNoteProof({
+        action: editingNoteId ? "UPDATE_NOTE" : "CREATE_NOTE",
+        noteId: editingNoteId || undefined,
+        ...values,
+      });
 
       if (editingNoteId) {
-        await updateNote({ id: editingNoteId, author, walletAddress, ...values });
+        await updateNote({
+          id: editingNoteId,
+          author,
+          walletAddress,
+          ...values,
+          ...chainProof,
+        });
       } else {
-        await addNote({ author, walletAddress, ...values });
+        await addNote({ author, walletAddress, ...values, ...chainProof });
       }
 
       await Promise.all([loadNotes(), loadWalletTransactions(), loadActivity()]);
@@ -243,7 +258,15 @@ export function useNotes({ walletAddress }: UseNotesOptions = {}) {
     setGlobalError("");
 
     try {
-      await deleteNote(id, walletAddress);
+      const note = allNotes.find((candidate) => candidate.id === id);
+      const chainProof = await createChainProof({
+        action: "DELETE_NOTE",
+        noteId: id,
+        title: note?.title,
+        tag: note?.tag,
+        content: note?.content,
+      });
+      await deleteNote(id, walletAddress, chainProof);
       removePinnedNote(id);
       await Promise.all([loadNotes(), loadWalletTransactions(), loadActivity()]);
     } catch (requestError) {
@@ -260,7 +283,15 @@ export function useNotes({ walletAddress }: UseNotesOptions = {}) {
     setGlobalError("");
 
     try {
-      await restoreNote(id, walletAddress);
+      const note = trashNotes.find((candidate) => candidate.id === id);
+      const chainProof = await createChainProof({
+        action: "RESTORE_NOTE",
+        noteId: id,
+        title: note?.title,
+        tag: note?.tag,
+        content: note?.content,
+      });
+      await restoreNote(id, walletAddress, chainProof);
       await Promise.all([loadNotes(), loadWalletTransactions(), loadActivity()]);
     } catch (requestError) {
       setGlobalError(getApiError(requestError, "The note could not be restored."));
@@ -280,7 +311,15 @@ export function useNotes({ walletAddress }: UseNotesOptions = {}) {
     setGlobalError("");
 
     try {
-      await hardDeleteNote(id, walletAddress);
+      const note = [...allNotes, ...trashNotes].find((candidate) => candidate.id === id);
+      const chainProof = await createChainProof({
+        action: "PERMANENT_DELETE_NOTE",
+        noteId: id,
+        title: note?.title,
+        tag: note?.tag,
+        content: note?.content,
+      });
+      await hardDeleteNote(id, walletAddress, chainProof);
       removePinnedNote(id);
       await Promise.all([loadNotes(), loadWalletTransactions(), loadActivity()]);
     } catch (requestError) {
@@ -308,6 +347,14 @@ export function useNotes({ walletAddress }: UseNotesOptions = {}) {
       nextIds.delete(id);
       return nextIds;
     });
+  }
+
+  async function createChainProof(intent: NoteTransactionIntent) {
+    if (!walletAddress || !publishNoteProof) {
+      throw new Error("Connect your Preprod wallet before changing a note.");
+    }
+
+    return publishNoteProof(intent);
   }
 
   return {

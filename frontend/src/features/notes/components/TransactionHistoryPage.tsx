@@ -1,4 +1,4 @@
-import { FilePenLine, RotateCcw, Trash2, Wallet } from 'lucide-react';
+import { ExternalLink, FilePenLine, RotateCcw, Trash2, Wallet } from 'lucide-react';
 import type { NoteActivity, NoteActivityAction } from '../../../types/blockchain';
 import type { WalletAuthState } from '../hooks/useWalletAuth';
 import WalletConnection, { formatWalletAddress } from './WalletConnection';
@@ -46,6 +46,24 @@ function formatHash(value: string) {
   }
 
   return `${value.slice(0, 10)}...${value.slice(-10)}`;
+}
+
+function getStatusColors(status: NoteActivity['confirmationStatus']) {
+  if (status === 'Confirmed') {
+    return { background: '#DCFCE7', foreground: '#166534' };
+  }
+
+  if (status === 'Failed') {
+    return { background: '#FEE2E2', foreground: '#991B1B' };
+  }
+
+  return { background: '#FEF3C7', foreground: '#92400E' };
+}
+
+function getExplorerUrl(entry: NoteActivity) {
+  return entry.cardanoTxHash && entry.network === 'preprod'
+    ? `https://preprod.cardanoscan.io/transaction/${entry.cardanoTxHash}`
+    : '';
 }
 
 export default function TransactionHistoryPage({
@@ -125,7 +143,11 @@ export default function TransactionHistoryPage({
         </div>
       ) : (
         <section style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {activity.map((entry) => (
+          {activity.map((entry) => {
+            const statusColors = getStatusColors(entry.confirmationStatus);
+            const explorerUrl = getExplorerUrl(entry);
+
+            return (
             <div
               key={entry.id}
               style={{
@@ -150,12 +172,20 @@ export default function TransactionHistoryPage({
                 <div style={{ fontSize: '13px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {entry.noteTitle || 'Untitled note'} {entry.noteTag ? `#${entry.noteTag.toLowerCase()}` : ''}
                 </div>
-                {entry.transactionId && (
+                {entry.proofHash && (
                   <div
-                    title={entry.transactionId}
+                    title={entry.proofHash}
                     style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace' }}
                   >
-                    App transaction {formatHash(entry.transactionId)}
+                    Proof hash {formatHash(entry.proofHash)}
+                  </div>
+                )}
+                {entry.cardanoTxHash && (
+                  <div
+                    title={entry.cardanoTxHash}
+                    style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace' }}
+                  >
+                    Cardano transaction {formatHash(entry.cardanoTxHash)}
                   </div>
                 )}
                 {entry.cardanoBlockHash && (
@@ -170,15 +200,48 @@ export default function TransactionHistoryPage({
               </div>
 
               <div style={{ textAlign: 'right', minWidth: '130px' }}>
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    padding: '3px 8px',
+                    borderRadius: '999px',
+                    backgroundColor: statusColors.background,
+                    color: statusColors.foreground,
+                    fontSize: '11px',
+                    fontWeight: 700,
+                  }}
+                >
+                  {entry.confirmationStatus}
+                </div>
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                   {formatActivityDate(entry.createdAt)}
                 </div>
                 <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--text-muted)' }}>
                   {entry.network}
                 </div>
+                {explorerUrl && (
+                  <a
+                    href={explorerUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      marginTop: '6px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      color: '#9A5B35',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      textDecoration: 'none',
+                    }}
+                  >
+                    View on explorer <ExternalLink size={12} />
+                  </a>
+                )}
               </div>
             </div>
-          ))}
+            );
+          })}
         </section>
       )}
     </div>

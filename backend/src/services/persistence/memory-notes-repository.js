@@ -79,9 +79,13 @@ class MemoryNotesRepository {
       noteId: entry.noteId ? String(entry.noteId) : "",
       noteTitle: entry.noteTitle || "",
       noteTag: entry.noteTag || "General",
-      transactionId: entry.transactionId || "",
+      proofHash: entry.proofHash || "",
+      cardanoTxHash: entry.cardanoTxHash || "",
+      confirmationStatus: entry.confirmationStatus || "Failed",
       cardanoBlockHash: entry.cardanoBlockHash || "",
       cardanoBlockHeight: entry.cardanoBlockHeight ?? null,
+      validUntilSlot: entry.validUntilSlot ?? null,
+      confirmedAt: entry.confirmedAt || null,
       network: entry.network || "",
       createdAt: entry.createdAt || new Date().toISOString(),
     };
@@ -89,6 +93,20 @@ class MemoryNotesRepository {
     this.nextActivityId += 1;
     this.activity.push(activityEntry);
     return activityEntry;
+  }
+
+  async updateActivity(id, updates) {
+    const index = this.activity.findIndex((entry) => String(entry.id) === String(id));
+
+    if (index === -1) {
+      return null;
+    }
+
+    this.activity[index] = {
+      ...this.activity[index],
+      ...updates,
+    };
+    return this.activity[index];
   }
 
   async saveNoteBlock(block) {

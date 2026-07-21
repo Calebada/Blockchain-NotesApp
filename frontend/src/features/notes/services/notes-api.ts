@@ -2,7 +2,10 @@ import axios, { AxiosError } from "axios";
 import { API_BASE_URL } from "../../../config/api";
 import type {
   ChainResponse,
+  BlockchainProof,
   NoteActivityResponse,
+  NoteTransactionIntent,
+  PreparedNoteTransaction,
   WalletTransactionsResponse,
 } from "../../../types/blockchain";
 import type { CreateNoteRequest, UpdateNoteRequest } from "../types/note";
@@ -38,12 +41,35 @@ export async function fetchWalletTransactions(walletAddress?: string | null) {
   return response.data;
 }
 
+export async function prepareNoteTransaction(
+  intent: NoteTransactionIntent & {
+    walletAddress: string;
+    utxos: string[];
+    changeAddress: string;
+  }
+) {
+  const response = await axios.post<PreparedNoteTransaction>(
+    `${API_BASE_URL}/transactions/prepare`,
+    intent
+  );
+  return response.data;
+}
+
+export async function submitNoteTransaction(unsignedTx: string, witnessSet: string) {
+  const response = await axios.post<Omit<BlockchainProof, "proofHash" | "validUntilSlot">>(
+    `${API_BASE_URL}/transactions/submit`,
+    { unsignedTx, witnessSet }
+  );
+  return response.data;
+}
+
 export async function addNote({
   author,
   title,
   tag,
   content,
   walletAddress,
+  ...chainProof
 }: CreateNoteRequest) {
   await axios.post(`${API_BASE_URL}/notes`, {
     author,
@@ -51,6 +77,7 @@ export async function addNote({
     tag,
     content,
     walletAddress,
+    ...chainProof,
   });
 }
 
@@ -61,6 +88,7 @@ export async function updateNote({
   tag,
   content,
   walletAddress,
+  ...chainProof
 }: UpdateNoteRequest) {
   if (!id) {
     throw new Error("A backend note ID is required to edit this note.");
@@ -72,36 +100,50 @@ export async function updateNote({
     tag,
     content,
     walletAddress,
+    ...chainProof,
   });
 }
 
-export async function deleteNote(id?: string, walletAddress?: string | null) {
+export async function deleteNote(
+  id: string | undefined,
+  walletAddress: string | null | undefined,
+  chainProof: BlockchainProof
+) {
   if (!id) {
     throw new Error("A backend note ID is required to delete this note.");
   }
 
   await axios.delete(`${API_BASE_URL}/notes/${id}`, {
-    data: { walletAddress },
+    data: { walletAddress, ...chainProof },
   });
 }
 
-export async function restoreNote(id?: string, walletAddress?: string | null) {
+export async function restoreNote(
+  id: string | undefined,
+  walletAddress: string | null | undefined,
+  chainProof: BlockchainProof
+) {
   if (!id) {
     throw new Error("A backend note ID is required to restore this note.");
   }
 
   await axios.post(`${API_BASE_URL}/notes/${id}/restore`, {
     walletAddress,
+    ...chainProof,
   });
 }
 
-export async function hardDeleteNote(id?: string, walletAddress?: string | null) {
+export async function hardDeleteNote(
+  id: string | undefined,
+  walletAddress: string | null | undefined,
+  chainProof: BlockchainProof
+) {
   if (!id) {
     throw new Error("A backend note ID is required to permanently delete this note.");
   }
 
   await axios.delete(`${API_BASE_URL}/notes/${id}/permanent`, {
-    data: { walletAddress },
+    data: { walletAddress, ...chainProof },
   });
 }
 
@@ -109,6 +151,10 @@ export function getApiError(error: unknown, fallback: string) {
   if (axios.isAxiosError(error)) {
     const axiosError = error as AxiosError<ApiError>;
     return axiosError.response?.data?.error || fallback;
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
   }
 
   return fallback;
