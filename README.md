@@ -83,6 +83,7 @@ The Blockfrost SDK is the chain access layer for this app. It does not sign wall
 ```bash
 BLOCKFROST_PROJECT_ID=preprod_your_project_id_here
 BLOCKFROST_NETWORK=preprod
+CARDANO_BACKEND_WALLET_ADDRESS=addr_test_your_backend_wallet_address_here
 PORT=5000
 ```
 
@@ -91,7 +92,7 @@ The configured network must match the network assigned to the Blockfrost project
 
 Keep `BLOCKFROST_PROJECT_ID` out of frontend code and commits.
 
-The backend initializes `BlockFrostAPI` with the configured project ID and network. The SDK provides request throttling, retries, timeouts, and structured Blockfrost errors. `BLOCKFROST_API_URL` is optional and should only be set when using a compatible custom backend.
+The backend initializes `BlockFrostAPI` with the configured project ID and network. The SDK provides request throttling, retries, timeouts, and structured Blockfrost errors. `BLOCKFROST_API_URL` is optional and should only be set when using a compatible custom backend. When `CARDANO_BACKEND_WALLET_ADDRESS` is set, the backend fetches live UTXOs for that wallet after note create, update, and restore transactions, prints them with `console.table()`, and summarizes the active ADA balance.
 
 ## Supabase Setup
 

@@ -15,6 +15,7 @@ function createBlockfrostConfig(env = process.env) {
   const projectNetwork = deriveNetworkFromProjectId(projectId);
   const network = (env.BLOCKFROST_NETWORK || projectNetwork || "preprod").toLowerCase();
   const customBackend = env.BLOCKFROST_API_URL?.replace(/\/$/, "");
+  const walletAddress = env.CARDANO_BACKEND_WALLET_ADDRESS || "";
 
   if (!SUPPORTED_BLOCKFROST_NETWORKS.includes(network)) {
     throw new Error(
@@ -29,6 +30,7 @@ function createBlockfrostConfig(env = process.env) {
     projectId,
     projectNetwork,
     customBackend,
+    walletAddress,
   };
 }
 

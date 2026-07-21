@@ -29,6 +29,10 @@ function createNotesController(notesLedger) {
       res.json(await notesLedger.getTrashState());
     },
 
+    async getWalletTransactions(req, res) {
+      res.json(await notesLedger.getWalletTransactions());
+    },
+
     async updateNote(req, res) {
       const { block, valid } = await notesLedger.updateNote(
         req.params.id,

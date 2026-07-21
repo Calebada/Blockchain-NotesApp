@@ -11,6 +11,7 @@ class BlockfrostClient {
     this.network = config.network;
     this.projectId = config.projectId;
     this.projectNetwork = config.projectNetwork;
+    this.walletAddress = config.walletAddress || "";
     this.api = this.projectId
       ? new BlockFrostAPI({
           projectId: this.projectId,
@@ -56,6 +57,16 @@ class BlockfrostClient {
 
     try {
       return await this.api.blocksLatest();
+    } catch (error) {
+      throw this.normalizeSdkError(error);
+    }
+  }
+
+  async getAddressUtxos(walletAddress = this.walletAddress) {
+    this.assertConfigured();
+
+    try {
+      return await this.api.addressesUtxos(walletAddress);
     } catch (error) {
       throw this.normalizeSdkError(error);
     }
