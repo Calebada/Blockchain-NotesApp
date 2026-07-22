@@ -31,15 +31,10 @@ export default function Sidebar({
   walletAuth,
   transactionCount,
 }: SidebarProps) {
-  const [tagSearchQuery, setTagSearchQuery] = useState('');
-
   const fixedNav = NOTE_TAG_OPTIONS;
-  const filteredFixedNav = fixedNav.filter(tag =>
-    tag.toLowerCase().includes(tagSearchQuery.toLowerCase())
-  );
+  const filteredFixedNav = fixedNav;
   const dynamicTags = Object.keys(counts.tags).filter(
-    tag => !fixedNav.map(t => t.toLowerCase()).includes(tag.toLowerCase()) &&
-           tag.toLowerCase().includes(tagSearchQuery.toLowerCase())
+    tag => !fixedNav.map(t => t.toLowerCase()).includes(tag.toLowerCase())
   );
 
   return (
@@ -151,32 +146,7 @@ export default function Sidebar({
         }}>
           <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.5px', color: '#8A8581', textTransform: 'uppercase' }}>TAGS</span>
           
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '4px',
-            backgroundColor: 'transparent',
-            borderRadius: '4px',
-            padding: '2px 6px',
-            width: '100px',
-            border: '1px solid rgba(255, 255, 255, 0.05)'
-          }}>
-            <Search size={12} color="#8A8581" />
-            <input 
-              type="text"
-              placeholder="Search..."
-              value={tagSearchQuery}
-              onChange={(e) => setTagSearchQuery(e.target.value)}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                outline: 'none',
-                color: 'var(--text-sidebar)',
-                fontSize: '11px',
-                width: '100%'
-              }}
-            />
-          </div>
+
         </div>
 
         {filteredFixedNav.map(navItem => (
@@ -213,11 +183,7 @@ export default function Sidebar({
           />
         ))}
         
-        {tagSearchQuery && filteredFixedNav.length === 0 && dynamicTags.length === 0 && (
-          <div style={{ padding: '8px 12px', fontSize: '12px', color: '#8A8581', fontStyle: 'italic' }}>
-            No tags found.
-          </div>
-        )}
+
       </nav>
 
       <div style={{ borderTop: '1px solid var(--border-sidebar)', paddingTop: '16px', marginTop: '16px' }}>

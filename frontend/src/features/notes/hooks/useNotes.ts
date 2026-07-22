@@ -40,7 +40,20 @@ export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = 
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [modalError, setModalError] = useState("");
-  const [pinnedNoteIds, setPinnedNoteIds] = useState<Set<string>>(new Set());
+  const [pinnedNoteIds, setPinnedNoteIds] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem("pinnedNoteIds");
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem("pinnedNoteIds", JSON.stringify(Array.from(pinnedNoteIds)));
+  }, [pinnedNoteIds]);
+  const [walletTransactions, setWalletTransactions] =
+    useState<WalletTransactionsResponse | null>(null);
   const [activity, setActivity] = useState<NoteActivity[]>([]);
   const [activityError, setActivityError] = useState("");
 
@@ -410,10 +423,10 @@ function toFrontendNote(
   const noteContent =
     block.note.title || block.note.tag
       ? {
-          title: block.note.title || "",
-          tag: normalizeTag(block.note.tag),
-          content: block.note.content,
-        }
+        title: block.note.title || "",
+        tag: normalizeTag(block.note.tag),
+        content: block.note.content,
+      }
       : parseNoteContent(block.note.content);
   const pinKey = block.id || block.hash;
 
