@@ -1,4 +1,4 @@
-import { Activity, AlertCircle, Coins, Layers, Network, RefreshCw, Wallet } from 'lucide-react';
+import { Activity, AlertCircle, Coins, Globe, Layers, RefreshCw, Wallet } from 'lucide-react';
 import { useState } from 'react';
 import type { WalletTransactionsResponse } from '../../../types/blockchain';
 
@@ -156,20 +156,26 @@ export default function WalletTransactionsPanel({
         }}
       >
         <SummaryMetric
-          icon={<Coins size={14} />}
+          icon={<Coins size={20} />}
           label="Available ADA"
           value={`${walletTransactions?.totalAda || '0.000000'} ADA`}
+          iconColor="#B8722C"
+          iconBg="#F5DDBB"
           primary
         />
         <SummaryMetric
-          icon={<Layers size={14} />}
+          icon={<Layers size={20} />}
           label="UTXO entries"
           value={String(walletTransactions?.transactionCount || 0)}
+          iconColor="#6E5A47"
+          iconBg="#E8DED0"
         />
         <SummaryMetric
-          icon={<Network size={14} />}
+          icon={<Globe size={20} />}
           label="Network"
           value={walletTransactions?.network || 'Unknown'}
+          iconColor="#3F6BAB"
+          iconBg="#D6E4FA"
         />
       </div>
 
@@ -179,7 +185,7 @@ export default function WalletTransactionsPanel({
           {error}
         </div>
       ) : !isConfigured ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#8C7C6D', backgroundColor: '#F3EFEA', borderRadius: '8px', padding: '12px 14px', fontSize: '13px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#92600D', backgroundColor: '#FEF3E2', border: '1px solid #F5D9A8', borderRadius: '8px', padding: '12px 14px', fontSize: '13px' }}>
           <AlertCircle size={15} />
           Backend wallet address is not configured.
         </div>
@@ -245,20 +251,37 @@ export default function WalletTransactionsPanel({
   );
 }
 
-function SummaryMetric({ icon, label, value, primary }: { icon: React.ReactNode; label: string; value: string; primary?: boolean }) {
+function SummaryMetric({ icon, label, value, primary, iconColor, iconBg }: { icon: React.ReactNode; label: string; value: string; primary?: boolean; iconColor: string; iconBg: string }) {
   return (
     <div style={{
       backgroundColor: primary ? '#FDF3E9' : '#F8F4EF',
       border: primary ? '1px solid #F0D9BC' : '1px solid transparent',
-      borderRadius: '8px',
-      padding: '12px',
+      borderRadius: '10px',
+      padding: '14px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '12px',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: primary ? 'var(--accent-orange-hover)' : 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
+      <div style={{
+        width: '38px',
+        height: '38px',
+        borderRadius: '10px',
+        backgroundColor: iconBg,
+        color: iconColor,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flex: '0 0 auto',
+      }}>
         {icon}
-        {label}
       </div>
-      <div style={{ marginTop: '6px', fontSize: primary ? '17px' : '15px', color: 'var(--text-main)', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {value}
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: '10.5px', color: primary ? 'var(--accent-orange-hover)' : 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.3px' }}>
+          {label}
+        </div>
+        <div style={{ marginTop: '3px', fontSize: primary ? '17px' : '15px', color: 'var(--text-main)', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {value}
+        </div>
       </div>
     </div>
   );
