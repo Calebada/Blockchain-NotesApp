@@ -1,4 +1,4 @@
-import type { NoteTag } from "../features/notes/types/note";
+import type { NoteTag } from "./note";
 
 export type LedgerNote = {
   author: string;

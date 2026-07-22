@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { History, PenSquare, Plus, Inbox, Star, Tag, Search, Trash2 } from 'lucide-react';
 import { NOTE_TAG_OPTIONS } from '../types/note';
-import type { WalletAuthState } from '../hooks/useWalletAuth';
+import type { WalletAuthState } from '../../wallet/hooks/useWalletAuth';
 import type { NoteCounts } from '../types/note';
 import { TAG_COLORS } from '../constants/tagColors';
-import WalletConnection from './WalletConnection';
+import WalletConnection from '../../wallet/components/WalletConnection';
 
 
 const NAV_COLORS: Record<string, string> = {

@@ -40,15 +40,22 @@ Transaction history keeps the local `proofHash` separate from the real `cardanoT
 |   |   |-- config
 |   |   |   `-- api.ts
 |   |   |-- features
-|   |   |   `-- notes
+|   |   |   |-- notes
+|   |   |   |   |-- components
+|   |   |   |   |-- hooks
+|   |   |   |   |-- pages
+|   |   |   |   |-- services
+|   |   |   |   `-- types
+|   |   |   |-- transactions
+|   |   |   |   `-- pages
+|   |   |   `-- wallet
 |   |   |       |-- components
-|   |   |       |-- hooks
-|   |   |       |-- pages
-|   |   |       |-- services
-|   |   |       `-- types
+|   |   |       `-- hooks
 |   |   |-- main.tsx
 |   |   |-- types
-|   |   |   `-- blockchain.ts
+|   |   |   |-- blockchain.ts
+|   |   |   |-- cardano-wallet.ts
+|   |   |   `-- note.ts
 |   |   `-- vite-env.d.ts
 |   |-- tsconfig.json
 |   `-- vite.config.ts
@@ -64,6 +71,9 @@ Transaction history keeps the local `proofHash` separate from the real `cardanoT
 - `backend/src/http` contains Express controllers, routes, payload parsing, and centralized error middleware.
 - `backend/src/app.js` is the composition root; `backend/server.js` only loads configuration and starts HTTP listening.
 - `frontend/src/features/notes` owns note components, API calls, feature types, pages, and state orchestration.
+- `frontend/src/features/wallet` owns CIP-30 wallet connection state and wallet-facing UI.
+- `frontend/src/features/transactions` owns transaction history pages and transaction-specific presentation.
+- `frontend/src/types` contains shared frontend types used across multiple features.
 - `frontend/src/App.tsx` selects the feature page, while `frontend/src/config` owns deployment-specific configuration.
 
 ## Prerequisites
