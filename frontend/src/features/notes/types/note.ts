@@ -1,6 +1,7 @@
-export const NOTE_TAG_OPTIONS = ["General", "Work", "Personal", "Ideas"] as const;
+import type { NoteTag } from "../../../types/note";
 
-export type NoteTag = (typeof NOTE_TAG_OPTIONS)[number];
+export { NOTE_TAG_OPTIONS } from "../../../types/note";
+export type { NoteTag } from "../../../types/note";
 
 export type NoteContent = {
   title: string;

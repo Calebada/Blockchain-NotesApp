@@ -1,9 +1,9 @@
 import NoteForm from "../components/NoteForm";
 import NotesList from "../components/NotesList";
 import Sidebar from "../components/Sidebar";
-import TransactionHistoryPage from "../components/TransactionHistoryPage";
+import TransactionHistoryPage from "../../transactions/pages/TransactionHistoryPage";
 import { useNotes } from "../hooks/useNotes";
-import { useWalletAuth } from "../hooks/useWalletAuth";
+import { useWalletAuth } from "../../wallet/hooks/useWalletAuth";
 
 export default function NotesPage() {
   const walletAuth = useWalletAuth();

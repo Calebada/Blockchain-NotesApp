@@ -1,7 +1,7 @@
 import { ExternalLink, FilePenLine, RotateCcw, Trash2, Wallet } from 'lucide-react';
 import type { NoteActivity, NoteActivityAction } from '../../../types/blockchain';
-import type { WalletAuthState } from '../hooks/useWalletAuth';
-import WalletConnection, { formatWalletAddress } from './WalletConnection';
+import type { WalletAuthState } from '../../wallet/hooks/useWalletAuth';
+import WalletConnection, { formatWalletAddress } from '../../wallet/components/WalletConnection';
 
 interface TransactionHistoryPageProps {
   activity: NoteActivity[];

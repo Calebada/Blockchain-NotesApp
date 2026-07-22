@@ -93,15 +93,22 @@ Key design decisions:
 |   |   |-- config
 |   |   |   `-- api.ts
 |   |   |-- features
-|   |   |   `-- notes
+|   |   |   |-- notes
+|   |   |   |   |-- components
+|   |   |   |   |-- hooks
+|   |   |   |   |-- pages
+|   |   |   |   |-- services
+|   |   |   |   `-- types
+|   |   |   |-- transactions
+|   |   |   |   `-- pages
+|   |   |   `-- wallet
 |   |   |       |-- components
-|   |   |       |-- hooks
-|   |   |       |-- pages
-|   |   |       |-- services
-|   |   |       `-- types
+|   |   |       `-- hooks
 |   |   |-- main.tsx
 |   |   |-- types
-|   |   |   `-- blockchain.ts
+|   |   |   |-- blockchain.ts
+|   |   |   |-- cardano-wallet.ts
+|   |   |   `-- note.ts
 |   |   `-- vite-env.d.ts
 |   |-- tsconfig.json
 |   `-- vite.config.ts
@@ -111,34 +118,13 @@ Key design decisions:
 
 ## Architecture
 
-| Layer | Responsibility |
-|---|---|
-| `backend/src/domain` | Note-block creation and hash validation — pure logic, no framework dependencies. |
-| `backend/src/application` | Coordinates note use cases (create/edit/delete/restore) through injected provider, persistence, and logging dependencies. |
-| `backend/src/services` | Cardano transaction builder, Blockfrost SDK adapter, persistence adapters, and transaction logger. |
-| `backend/src/http` | Express controllers, routes, payload parsing, and centralized error middleware. |
-| `backend/src/app.js` | Composition root — wires dependencies together. `backend/server.js` only loads configuration and starts the HTTP listener. |
-| `frontend/src/features/notes` | Owns note components, API calls, feature types, pages, and state orchestration. |
-| `frontend/src/App.tsx` | Selects the feature page to render. |
-| `frontend/src/config` | Deployment-specific configuration (API base URL, etc). |
-
-This layering keeps blockchain/Blockfrost logic, persistence, and HTTP concerns separated, so each piece can be tested or swapped independently (e.g. Supabase could be replaced with another store without touching the domain or Cardano logic).
-
-## Tech Stack & Dependencies
-
-**Frontend**
-- React + TypeScript, built with Vite
-- CIP-30 wallet API (via browser wallet extensions like Eternl) for signing transactions
-- `lucide-react` for icons
-
-**Backend**
-- Node.js + Express
-- `@blockfrost/blockfrost-js` SDK — request throttling, retries, timeouts, structured errors
-- Supabase (`@supabase/supabase-js`) for persistent storage, with an in-memory fallback for local development without Supabase configured
-
-**Blockchain**
-- Cardano Preprod testnet only (mainnet intentionally disabled)
-- Blockfrost as the Cardano data provider/submission endpoint
+- `backend/src/domain` contains note-block creation and hash validation without framework dependencies.
+- `backend/src/application` coordinates note use cases through injected provider, persistence, and logging dependencies.
+- `backend/src/services` contains the Cardano transaction builder, Blockfrost SDK adapter, persistence adapters, and transaction logger.
+- `backend/src/http` contains Express controllers, routes, payload parsing, and centralized error middleware.
+- `backend/src/app.js` is the composition root; `backend/server.js` only loads configuration and starts HTTP listening.
+- `frontend/src/features/notes` owns note components, API calls, feature types, pages, and state orchestration.
+- `frontend/src/App.tsx` selects the feature page, while `frontend/src/config` owns deployment-specific configuration.
 
 ## Prerequisites
 

@@ -3,7 +3,7 @@ import { Search, Plus } from 'lucide-react';
 import type { FrontendNote } from '../types/note';
 import type { WalletTransactionsResponse } from '../../../types/blockchain';
 import NoteCard from './NoteCard';
-import WalletTransactionsPanel from './WalletTransactionsPanel';
+import WalletTransactionsPanel from '../../wallet/components/WalletTransactionsPanel';
 
 interface NotesListProps {
   title: string;

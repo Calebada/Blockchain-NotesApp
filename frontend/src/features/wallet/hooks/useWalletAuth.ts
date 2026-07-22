@@ -9,7 +9,7 @@ import type { BlockchainProof, NoteTransactionIntent } from "../../../types/bloc
 import {
   prepareNoteTransaction,
   submitNoteTransaction,
-} from "../services/notes-api";
+} from "../../notes/services/notes-api";
 
 const CONNECTED_WALLET_STORAGE_KEY = "notetify.connectedWalletId";
 const BECH32_CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";

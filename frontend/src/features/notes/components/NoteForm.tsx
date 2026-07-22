@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
-import type { WalletAuthState } from '../hooks/useWalletAuth';
-import WalletConnection from './WalletConnection';
+import type { WalletAuthState } from '../../wallet/hooks/useWalletAuth';
+import WalletConnection from '../../wallet/components/WalletConnection';
 import { NOTE_TAG_OPTIONS } from '../types/note';
 import type { NoteFormValues, NoteTag } from '../types/note';
 
