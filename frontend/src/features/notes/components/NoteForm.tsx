@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, Loader2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { AlertCircle, X, Loader2 } from 'lucide-react';
 import type { WalletAuthState } from '../../wallet/hooks/useWalletAuth';
 import WalletConnection from '../../wallet/components/WalletConnection';
 import { NOTE_TAG_OPTIONS } from '../types/note';
@@ -27,10 +27,38 @@ export default function NoteForm({
   const [title, setTitle] = useState(initialValues?.title || '');
   const [tag, setTag] = useState<NoteTag>(initialValues?.tag || 'General');
   const [content, setContent] = useState(initialValues?.content || '');
-  const canSubmit = Boolean(content.trim()) && (!requiresWallet || walletAuth.isWalletConnected);
+  const isWalletMissing = requiresWallet && !walletAuth.isWalletConnected;
+  const hasContent = Boolean(content.trim());
+  const [toastMessage, setToastMessage] = useState("");
+  const formError =
+    error === disconnectedWalletMessage ? "" : error;
 
 
   const [focusedField, setFocusedField] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!toastMessage) {
+      return;
+    }
+
+    const dismissTimer = window.setTimeout(() => setToastMessage(""), 3200);
+    return () => window.clearTimeout(dismissTimer);
+  }, [toastMessage]);
+
+  useEffect(() => {
+    if (error === disconnectedWalletMessage) {
+      setToastMessage(disconnectedWalletMessage);
+    }
+  }, [error]);
+
+  function handleSave() {
+    if (isWalletMissing) {
+      setToastMessage(disconnectedWalletMessage);
+      return;
+    }
+
+    onSave({ title, tag, content });
+  }
 
   const getInputStyle = (fieldName: string) => ({
     width: '100%',
@@ -68,6 +96,42 @@ export default function NoteForm({
       zIndex: 1000,
       padding: '24px'
     }}>
+      {toastMessage && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: 'fixed',
+            top: '24px',
+            right: '24px',
+            zIndex: 1100,
+            width: 'min(360px, calc(100vw - 48px))',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '10px',
+            color: '#FFFFFF',
+            backgroundColor: '#221811',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            borderRadius: '8px',
+            padding: '13px 14px',
+            boxShadow: '0 14px 32px rgba(0, 0, 0, 0.22)',
+            fontSize: '13px',
+            lineHeight: 1.45,
+            fontWeight: 600,
+          }}
+        >
+          <AlertCircle
+            size={16}
+            style={{
+              color: 'var(--accent-orange)',
+              flex: '0 0 auto',
+              marginTop: '1px',
+            }}
+          />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
       <div style={{
         backgroundColor: '#FDFAF4',
         borderRadius: '12px',
@@ -169,19 +233,32 @@ export default function NoteForm({
 
 
 
-          {error && (
-            <div style={{ marginTop: '8px', marginBottom: '8px' }}>
-              <span style={{
-                color: '#FFFFFF',
-                backgroundColor: '#5C7CFA',
+          {formError && (
+            <div
+              role="alert"
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '10px',
+                color: '#991B1B',
+                backgroundColor: '#FEE2E2',
+                border: '1px solid #FECACA',
+                borderRadius: '8px',
+                padding: '12px 14px',
                 fontSize: '13px',
-                padding: '2px 4px',
-                lineHeight: 1.5,
-                boxDecorationBreak: 'clone',
-                WebkitBoxDecorationBreak: 'clone'
-              }}>
-                {error}
-              </span>
+                lineHeight: 1.45,
+                fontWeight: 500,
+              }}
+            >
+              <AlertCircle
+                size={16}
+                style={{
+                  color: '#991B1B',
+                  flex: '0 0 auto',
+                  marginTop: '1px',
+                }}
+              />
+              <span>{formError}</span>
             </div>
           )}
         </div>
@@ -211,8 +288,8 @@ export default function NoteForm({
             Cancel
           </button>
           <button
-            onClick={() => onSave({ title, tag, content })}
-            disabled={isSubmitting || !canSubmit}
+            onClick={handleSave}
+            disabled={isSubmitting || !hasContent}
             style={{
               padding: '10px 16px',
               borderRadius: '6px',
@@ -220,12 +297,12 @@ export default function NoteForm({
               backgroundColor: '#221811',
               color: '#FFFFFF',
               fontWeight: 500,
-              cursor: canSubmit ? 'pointer' : 'not-allowed',
+              cursor: hasContent && !isSubmitting ? 'pointer' : 'not-allowed',
               fontSize: '14px',
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              opacity: canSubmit ? 1 : 0.7
+              opacity: hasContent ? 1 : 0.7
             }}
           >
             {isSubmitting && <Loader2 size={16} className="animate-spin" />}
@@ -236,3 +313,5 @@ export default function NoteForm({
     </div>
   );
 }
+
+const disconnectedWalletMessage = 'Connect your Preprod wallet before saving this note.';

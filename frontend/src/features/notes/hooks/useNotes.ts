@@ -52,8 +52,6 @@ export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = 
   useEffect(() => {
     localStorage.setItem("pinnedNoteIds", JSON.stringify(Array.from(pinnedNoteIds)));
   }, [pinnedNoteIds]);
-  const [walletTransactions, setWalletTransactions] =
-    useState<WalletTransactionsResponse | null>(null);
   const [activity, setActivity] = useState<NoteActivity[]>([]);
   const [activityError, setActivityError] = useState("");
 
@@ -170,7 +168,7 @@ export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = 
     setModalError("");
 
     if (!walletAddress || !publishNoteProof) {
-      setModalError("Connect your Preprod wallet before changing a note.");
+      setModalError(disconnectedWalletMessage);
       return;
     }
 
@@ -335,7 +333,7 @@ export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = 
 
   async function createChainProof(intent: NoteTransactionIntent) {
     if (!walletAddress || !publishNoteProof) {
-      throw new Error("Connect your Preprod wallet before changing a note.");
+      throw new Error(disconnectedWalletMessage);
     }
 
     return publishNoteProof(intent);
@@ -369,6 +367,7 @@ export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = 
 
 const missingNoteIdMessage =
   "This note is missing its backend ID. Restart the backend server, reload the app, and try again.";
+const disconnectedWalletMessage = "Connect your Preprod wallet before saving this note.";
 
 function sortPinnedFirst(left: FrontendNote, right: FrontendNote) {
   return Number(right.isPinned) - Number(left.isPinned);

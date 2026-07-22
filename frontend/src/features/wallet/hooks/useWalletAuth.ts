@@ -78,7 +78,7 @@ export function useWalletAuth() {
   const publishNoteProof = useCallback(
     async (intent: NoteTransactionIntent): Promise<BlockchainProof> => {
       if (!connectedWallet) {
-        throw new Error("Connect your Preprod wallet before changing a note.");
+        throw new Error("Connect your Preprod wallet before saving this note.");
       }
 
       const provider = getWalletProvider(connectedWallet.id);

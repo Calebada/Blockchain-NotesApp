@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import { AlertCircle } from "lucide-react";
 import NoteForm from "../components/NoteForm";
 import NotesList from "../components/NotesList";
 import Sidebar from "../components/Sidebar";
@@ -11,9 +13,63 @@ export default function NotesPage() {
     walletAddress: walletAuth.connectedWallet?.address,
     publishNoteProof: walletAuth.publishNoteProof,
   });
+  const [toastMessage, setToastMessage] = useState("");
+  const globalError =
+    notes.globalError === disconnectedWalletMessage ? "" : notes.globalError;
+
+  useEffect(() => {
+    if (notes.globalError === disconnectedWalletMessage) {
+      setToastMessage(disconnectedWalletMessage);
+    }
+  }, [notes.globalError]);
+
+  useEffect(() => {
+    if (!toastMessage) {
+      return;
+    }
+
+    const dismissTimer = window.setTimeout(() => setToastMessage(""), 3200);
+    return () => window.clearTimeout(dismissTimer);
+  }, [toastMessage]);
 
   return (
     <div style={{ display: "flex" }}>
+      {toastMessage && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: "fixed",
+            top: "24px",
+            right: "24px",
+            zIndex: 1200,
+            width: "min(360px, calc(100vw - 48px))",
+            display: "flex",
+            alignItems: "flex-start",
+            gap: "10px",
+            color: "#FFFFFF",
+            backgroundColor: "#221811",
+            border: "1px solid rgba(255, 255, 255, 0.12)",
+            borderRadius: "8px",
+            padding: "13px 14px",
+            boxShadow: "0 14px 32px rgba(0, 0, 0, 0.22)",
+            fontSize: "13px",
+            lineHeight: 1.45,
+            fontWeight: 600,
+          }}
+        >
+          <AlertCircle
+            size={16}
+            style={{
+              color: "var(--accent-orange)",
+              flex: "0 0 auto",
+              marginTop: "1px",
+            }}
+          />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
       <Sidebar
         activeTab={notes.activeTab}
         counts={notes.counts}
@@ -24,7 +80,7 @@ export default function NotesPage() {
       />
 
       <main style={{ flex: 1 }}>
-        {notes.globalError && (
+        {globalError && (
           <div
             role="alert"
             style={{
@@ -34,7 +90,7 @@ export default function NotesPage() {
               fontWeight: 500,
             }}
           >
-            {notes.globalError}
+            {globalError}
           </div>
         )}
 
@@ -84,3 +140,5 @@ export default function NotesPage() {
     </div>
   );
 }
+
+const disconnectedWalletMessage = "Connect your Preprod wallet before saving this note.";
