@@ -23,9 +23,14 @@ export async function fetchTrash() {
   return response.data;
 }
 
-export async function fetchActivity(walletAddress?: string | null) {
+export async function fetchActivity(
+  walletAddress?: string | null,
+  pagination: { page: number; pageSize: number } = { page: 1, pageSize: 10 }
+) {
   const response = await axios.get<NoteActivityResponse>(`${API_BASE_URL}/activity`, {
-    params: walletAddress ? { walletAddress } : undefined,
+    params: walletAddress
+      ? { walletAddress, page: pagination.page, pageSize: pagination.pageSize }
+      : undefined,
   });
   return response.data;
 }

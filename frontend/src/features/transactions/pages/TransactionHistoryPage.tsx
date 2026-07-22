@@ -1,12 +1,22 @@
-import { ExternalLink, FilePenLine, RotateCcw, Trash2, Wallet } from 'lucide-react';
+import type { CSSProperties } from 'react';
+import { ChevronLeft, ChevronRight, ExternalLink, FilePenLine, RotateCcw, Trash2, Wallet } from 'lucide-react';
 import type { NoteActivity, NoteActivityAction } from '../../../types/blockchain';
 import type { WalletAuthState } from '../../wallet/hooks/useWalletAuth';
 import WalletConnection, { formatWalletAddress } from '../../wallet/components/WalletConnection';
 
 interface TransactionHistoryPageProps {
   activity: NoteActivity[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+    hasPreviousPage: boolean;
+    hasNextPage: boolean;
+  };
   error: string;
   walletAuth: WalletAuthState;
+  onPageChange: (page: number) => void;
 }
 
 const ACTION_LABELS: Record<NoteActivityAction, string> = {
@@ -68,10 +78,14 @@ function getExplorerUrl(entry: NoteActivity) {
 
 export default function TransactionHistoryPage({
   activity,
+  pagination,
   error,
   walletAuth,
+  onPageChange,
 }: TransactionHistoryPageProps) {
   const connectedWallet = walletAuth.connectedWallet;
+  const firstItem = pagination.total === 0 ? 0 : (pagination.page - 1) * pagination.pageSize + 1;
+  const lastItem = Math.min(pagination.page * pagination.pageSize, pagination.total);
 
   return (
     <div
@@ -90,7 +104,7 @@ export default function TransactionHistoryPage({
             Transaction history
           </h2>
           <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
-            {connectedWallet ? `${activity.length} tracked ${activity.length === 1 ? 'action' : 'actions'}` : 'Wallet connection required'}
+            {connectedWallet ? `${pagination.total} tracked ${pagination.total === 1 ? 'action' : 'actions'}` : 'Wallet connection required'}
           </span>
         </div>
 
@@ -242,8 +256,61 @@ export default function TransactionHistoryPage({
             </div>
             );
           })}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: '16px',
+              paddingTop: '8px',
+              color: 'var(--text-muted)',
+              fontSize: '13px',
+            }}
+          >
+            <span>
+              Showing {firstItem}-{lastItem} of {pagination.total}
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => onPageChange(pagination.page - 1)}
+                disabled={!pagination.hasPreviousPage}
+                aria-label="Previous transaction page"
+                style={paginationButtonStyle(!pagination.hasPreviousPage)}
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <span style={{ minWidth: '72px', textAlign: 'center' }}>
+                Page {pagination.page} of {pagination.totalPages || 1}
+              </span>
+              <button
+                type="button"
+                onClick={() => onPageChange(pagination.page + 1)}
+                disabled={!pagination.hasNextPage}
+                aria-label="Next transaction page"
+                style={paginationButtonStyle(!pagination.hasNextPage)}
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
         </section>
       )}
     </div>
   );
+}
+
+function paginationButtonStyle(disabled: boolean): CSSProperties {
+  return {
+    width: '34px',
+    height: '34px',
+    border: '1px solid var(--border-light)',
+    borderRadius: '8px',
+    backgroundColor: disabled ? '#F3F0EC' : '#FFFFFF',
+    color: disabled ? '#B8AEA4' : 'var(--text-main)',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+  };
 }

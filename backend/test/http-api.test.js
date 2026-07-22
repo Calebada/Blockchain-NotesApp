@@ -5,6 +5,7 @@ const { createApp } = require("../src/app");
 function createNotesLedgerStub() {
   const ledger = {
     requestedWalletAddress: undefined,
+    requestedActivityOptions: undefined,
     mutationWalletAddresses: [],
     mutationOptions: [],
     provider: {
@@ -14,10 +15,13 @@ function createNotesLedgerStub() {
     },
     getState: async () => ({ valid: true, length: 0, chain: [] }),
     getTrashState: async () => ({ valid: true, length: 0, chain: [] }),
-    getActivity: async (walletAddress) => ({
-      network: "preprod",
-      walletAddress,
-      activity: [
+    getActivity: async (walletAddress, options = {}) => {
+      ledger.requestedActivityOptions = options;
+
+      return {
+        network: "preprod",
+        walletAddress,
+        activity: [
         {
           id: "1",
           action: "CREATE_NOTE",
@@ -36,7 +40,16 @@ function createNotesLedgerStub() {
           createdAt: "2026-07-21T00:00:00.000Z",
         },
       ],
-    }),
+        pagination: {
+          page: options.pagination?.page || 1,
+          pageSize: options.pagination?.pageSize || 10,
+          total: 1,
+          totalPages: 1,
+          hasPreviousPage: false,
+          hasNextPage: false,
+        },
+      };
+    },
     addNote: async (_note, options = {}) => {
       ledger.mutationWalletAddresses.push(options.walletAddress);
       ledger.mutationOptions.push(options);
@@ -188,6 +201,33 @@ test("returns tracked note activity through the HTTP controller", async () => {
     assert.equal(body.activity[0].confirmationStatus, "Confirmed");
     assert.equal(body.activity[0].cardanoBlockHash, "d".repeat(64));
     assert.equal(body.activity[0].cardanoBlockHeight, 123456);
+    assert.deepEqual(body.pagination, {
+      page: 1,
+      pageSize: 10,
+      total: 1,
+      totalPages: 1,
+      hasPreviousPage: false,
+      hasNextPage: false,
+    });
+  }, notesLedger);
+});
+
+test("passes transaction history pagination through the HTTP controller", async () => {
+  const notesLedger = createNotesLedgerStub();
+
+  await withServer(async (baseUrl) => {
+    const walletAddress = "addr_test_connected_wallet";
+    const response = await fetch(
+      `${baseUrl}/api/activity?walletAddress=${encodeURIComponent(walletAddress)}&page=3&pageSize=20`
+    );
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(notesLedger.requestedActivityOptions, {
+      pagination: {
+        page: 3,
+        pageSize: 20,
+      },
+    });
   }, notesLedger);
 });
 
