@@ -72,10 +72,11 @@ export default function NoteCard({
               <>
                 <span>·</span>
                 <span style={{
-                  backgroundColor: tagColor.bg,
-                  padding: '2px 9px',
+                  backgroundColor: `${tagColor.accent}33`,
+                  border: `1px solid ${tagColor.accent}`,
+                  padding: '3px 10px',
                   borderRadius: '12px',
-                  fontWeight: 600,
+                  fontWeight: 700,
                   fontSize: '11px',
                   color: tagColor.text
                 }}>
@@ -151,20 +152,28 @@ export default function NoteCard({
             style={{
               background: 'none',
               border: 'none',
-              padding: 0,
+              padding: '6px 10px',
+              borderRadius: '7px',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
+              gap: '7px',
               color: 'var(--text-muted)',
               fontSize: '13px',
-              fontWeight: 500,
+              fontWeight: 600,
               cursor: id ? 'pointer' : 'not-allowed',
-              opacity: id ? 1 : 0.55
+              opacity: id ? 1 : 0.55,
+              transition: 'background-color 0.2s, color 0.2s'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-main)'}
-            onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = 'var(--text-main)';
+              e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--text-muted)';
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
           >
-            <RotateCcw size={14} />
+            <RotateCcw size={17} strokeWidth={2.2} />
             Restore
           </button>
         ) : (
@@ -175,20 +184,28 @@ export default function NoteCard({
             style={{
               background: 'none',
               border: 'none',
-              padding: 0,
+              padding: '6px 10px',
+              borderRadius: '7px',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
+              gap: '7px',
               color: 'var(--text-muted)',
               fontSize: '13px',
-              fontWeight: 500,
+              fontWeight: 600,
               cursor: id ? 'pointer' : 'not-allowed',
-              opacity: id ? 1 : 0.55
+              opacity: id ? 1 : 0.55,
+              transition: 'background-color 0.2s, color 0.2s'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-main)'}
-            onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = 'var(--text-main)';
+              e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--text-muted)';
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
           >
-            <PenLine size={14} />
+            <PenLine size={17} strokeWidth={2.2} />
             Edit
           </button>
         )}
@@ -199,26 +216,26 @@ export default function NoteCard({
             style={{
               background: 'none',
               border: 'none',
-              padding: '4px 8px',
+              padding: '6px 10px',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              color: '#F87171',
+              gap: '7px',
+              color: '#DC5B5B',
               cursor: 'pointer',
               fontSize: '13px',
-              fontWeight: 500,
-              borderRadius: '6px',
+              fontWeight: 600,
+              borderRadius: '7px',
               transition: 'background-color 0.2s'
             }}
             title={isDeleted ? "Permanently delete note" : "Move note to trash"}
             onMouseEnter={(e) =>
-              e.currentTarget.style.backgroundColor = '#FEF2F2'
+              e.currentTarget.style.backgroundColor = '#FEE2E2'
             }
             onMouseLeave={(e) =>
               e.currentTarget.style.backgroundColor = 'transparent'
             }
           >
-            <Trash2 size={14} />
+            <Trash2 size={17} strokeWidth={2.2} />
             {isDeleted ? 'Delete forever' : 'Delete'}
           </button>
         )}
