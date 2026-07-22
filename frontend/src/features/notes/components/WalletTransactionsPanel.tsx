@@ -1,4 +1,5 @@
-import { Activity, RefreshCw, Wallet } from 'lucide-react';
+import { Activity, AlertCircle, Coins, Layers, Network, RefreshCw, Wallet } from 'lucide-react';
+import { useState } from 'react';
 import type { WalletTransactionsResponse } from '../../../types/blockchain';
 
 interface WalletTransactionsPanelProps {
@@ -38,58 +39,78 @@ export default function WalletTransactionsPanel({
   error,
   onRefresh,
 }: WalletTransactionsPanelProps) {
+  const [isRefreshHovered, setIsRefreshHovered] = useState(false);
   const transactions = walletTransactions?.transactions || [];
   const isConfigured = walletTransactions?.configured ?? true;
   const statusColor = error ? '#EF4444' : isLoading ? '#F59E0B' : '#16A34A';
+  const statusTint = error ? '#FDECEA' : isLoading ? '#FEF3E2' : '#EAF7EE';
 
   return (
     <section
       style={{
         backgroundColor: 'var(--bg-card)',
         border: '1px solid var(--border-light)',
-        borderRadius: '8px',
-        padding: '20px',
+        borderTop: `3px solid ${statusColor}`,
+        borderRadius: '12px',
+        padding: '22px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '18px',
+        gap: '20px',
+        boxShadow: '0 2px 10px rgba(0, 0, 0, 0.03)',
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'flex-start' }}>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', minWidth: 0 }}>
+        <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start', minWidth: 0 }}>
           <div
             style={{
-              width: '38px',
-              height: '38px',
-              borderRadius: '8px',
-              backgroundColor: '#F3EFEA',
+              width: '42px',
+              height: '42px',
+              borderRadius: '10px',
+              background: 'linear-gradient(135deg, #F3EFEA 0%, #E8DDD0 100%)',
               color: '#6E5A47',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               flex: '0 0 auto',
+              boxShadow: 'inset 0 0 0 1px rgba(110, 90, 71, 0.08)',
             }}
           >
-            <Wallet size={19} />
+            <Wallet size={20} />
           </div>
 
           <div style={{ minWidth: 0 }}>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-main)' }}>
+              <h3 className="serif-title" style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-main)', letterSpacing: '-0.2px' }}>
                 Live wallet transactions
               </h3>
               <span
                 style={{
-                  width: '8px',
-                  height: '8px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  backgroundColor: statusTint,
+                  padding: '2px 8px 2px 6px',
                   borderRadius: '999px',
-                  backgroundColor: statusColor,
-                  display: 'inline-block',
                 }}
                 title={error ? 'Wallet sync failed' : isLoading ? 'Syncing wallet' : 'Wallet synced'}
-              />
+              >
+                <span
+                  style={{
+                    width: '6px',
+                    height: '6px',
+                    borderRadius: '999px',
+                    backgroundColor: statusColor,
+                    display: 'inline-block',
+                  }}
+                />
+                <span style={{ fontSize: '10.5px', fontWeight: 600, color: statusColor }}>
+                  {error ? 'Error' : isLoading ? 'Syncing' : 'Synced'}
+                </span>
+              </span>
             </div>
-            <div style={{ marginTop: '4px', color: 'var(--text-muted)', fontSize: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <span>{formatWalletAddress(walletTransactions?.walletAddress || '')}</span>
+            <div style={{ marginTop: '5px', color: 'var(--text-muted)', fontSize: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <span style={{ fontFamily: 'monospace' }}>{formatWalletAddress(walletTransactions?.walletAddress || '')}</span>
+              <span>·</span>
               <span>Last sync {formatFetchedAt(walletTransactions?.fetchedAt)}</span>
             </div>
           </div>
@@ -98,23 +119,32 @@ export default function WalletTransactionsPanel({
         <button
           onClick={onRefresh}
           disabled={isLoading}
+          onMouseEnter={() => setIsRefreshHovered(true)}
+          onMouseLeave={() => setIsRefreshHovered(false)}
           title="Refresh wallet transactions"
           style={{
-            border: '1px solid var(--border-light)',
-            backgroundColor: '#FFFFFF',
-            color: 'var(--text-main)',
+            border: '1px solid',
+            borderColor: isRefreshHovered ? 'var(--accent-orange)' : 'var(--border-light)',
+            backgroundColor: isRefreshHovered ? '#FFF8F1' : '#FFFFFF',
+            color: isRefreshHovered ? 'var(--accent-orange-hover)' : 'var(--text-main)',
             borderRadius: '8px',
-            width: '36px',
-            height: '36px',
+            width: '38px',
+            height: '38px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             cursor: isLoading ? 'wait' : 'pointer',
             opacity: isLoading ? 0.6 : 1,
             flex: '0 0 auto',
+            transition: 'all 0.2s ease',
           }}
         >
-          <RefreshCw size={16} />
+          <RefreshCw
+            size={16}
+            style={{
+              animation: isLoading ? 'spin 1s linear infinite' : 'none',
+            }}
+          />
         </button>
       </div>
 
@@ -125,17 +155,32 @@ export default function WalletTransactionsPanel({
           gap: '12px',
         }}
       >
-        <SummaryMetric label="Available ADA" value={`${walletTransactions?.totalAda || '0.000000'} ADA`} />
-        <SummaryMetric label="UTXO entries" value={String(walletTransactions?.transactionCount || 0)} />
-        <SummaryMetric label="Network" value={walletTransactions?.network || 'Unknown'} />
+        <SummaryMetric
+          icon={<Coins size={14} />}
+          label="Available ADA"
+          value={`${walletTransactions?.totalAda || '0.000000'} ADA`}
+          primary
+        />
+        <SummaryMetric
+          icon={<Layers size={14} />}
+          label="UTXO entries"
+          value={String(walletTransactions?.transactionCount || 0)}
+        />
+        <SummaryMetric
+          icon={<Network size={14} />}
+          label="Network"
+          value={walletTransactions?.network || 'Unknown'}
+        />
       </div>
 
       {error ? (
-        <div role="alert" style={{ color: '#991B1B', backgroundColor: '#FEE2E2', borderRadius: '8px', padding: '12px 14px', fontSize: '13px', fontWeight: 500 }}>
+        <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#991B1B', backgroundColor: '#FEE2E2', borderRadius: '8px', padding: '12px 14px', fontSize: '13px', fontWeight: 500 }}>
+          <AlertCircle size={15} />
           {error}
         </div>
       ) : !isConfigured ? (
-        <div style={{ color: 'var(--text-muted)', backgroundColor: '#F8F4EF', borderRadius: '8px', padding: '12px 14px', fontSize: '13px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#8C7C6D', backgroundColor: '#F3EFEA', borderRadius: '8px', padding: '12px 14px', fontSize: '13px' }}>
+          <AlertCircle size={15} />
           Backend wallet address is not configured.
         </div>
       ) : transactions.length === 0 ? (
@@ -147,6 +192,7 @@ export default function WalletTransactionsPanel({
           {transactions.map((transaction) => (
             <div
               key={`${transaction.txHash}-${transaction.outputIndex}`}
+              className="card-hover"
               style={{
                 border: '1px solid var(--border-light)',
                 borderRadius: '8px',
@@ -159,35 +205,59 @@ export default function WalletTransactionsPanel({
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-                <Activity size={16} color="#8C7C6D" />
+                <div style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '7px',
+                  backgroundColor: '#F3EFEA',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flex: '0 0 auto',
+                }}>
+                  <Activity size={14} color="#8C7C6D" />
+                </div>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontFamily: 'monospace', fontSize: '13px', color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {transaction.txHashShort || transaction.txHash}
                   </div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '3px' }}>
-                    Output #{transaction.outputIndex} - {transaction.assetCount} {transaction.assetCount === 1 ? 'asset' : 'assets'}
+                    Output #{transaction.outputIndex} · {transaction.assetCount} {transaction.assetCount === 1 ? 'asset' : 'assets'}
                   </div>
                 </div>
               </div>
 
-              <strong style={{ fontSize: '13px', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+              <strong style={{ fontSize: '13px', color: 'var(--accent-orange-hover)', whiteSpace: 'nowrap' }}>
                 {transaction.ada} ADA
               </strong>
             </div>
           ))}
         </div>
       )}
+
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </section>
   );
 }
 
-function SummaryMetric({ label, value }: { label: string; value: string }) {
+function SummaryMetric({ icon, label, value, primary }: { icon: React.ReactNode; label: string; value: string; primary?: boolean }) {
   return (
-    <div style={{ backgroundColor: '#F8F4EF', borderRadius: '8px', padding: '12px' }}>
-      <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
+    <div style={{
+      backgroundColor: primary ? '#FDF3E9' : '#F8F4EF',
+      border: primary ? '1px solid #F0D9BC' : '1px solid transparent',
+      borderRadius: '8px',
+      padding: '12px',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: primary ? 'var(--accent-orange-hover)' : 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
+        {icon}
         {label}
       </div>
-      <div style={{ marginTop: '6px', fontSize: '15px', color: 'var(--text-main)', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <div style={{ marginTop: '6px', fontSize: primary ? '17px' : '15px', color: 'var(--text-main)', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {value}
       </div>
     </div>
