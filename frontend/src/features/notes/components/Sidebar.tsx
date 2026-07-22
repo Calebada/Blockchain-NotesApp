@@ -6,6 +6,14 @@ import type { NoteCounts } from '../types/note';
 import { TAG_COLORS } from '../constants/tagColors';
 import WalletConnection from './WalletConnection';
 
+
+const NAV_COLORS: Record<string, string> = {
+  all: '#C6B5A1',
+  pinned: '#E8B84B',
+  trash: '#E17A6B',
+  transactions: '#6E9AE0',
+};
+
 interface SidebarProps {
   activeTab: string;
   onTabSelect: (tab: string) => void;
@@ -102,6 +110,8 @@ export default function Sidebar({
           count={counts.all}
           isActive={activeTab === 'all'}
           onClick={() => onTabSelect('all')}
+          color={NAV_COLORS.all}
+          filled
         />
         <NavItem
           icon={<Star size={18} />}
@@ -109,6 +119,8 @@ export default function Sidebar({
           count={counts.pinned}
           isActive={activeTab === 'pinned'}
           onClick={() => onTabSelect('pinned')}
+          color={NAV_COLORS.pinned}
+          filled
         />
         <NavItem
           icon={<Trash2 size={18} />}
@@ -116,6 +128,8 @@ export default function Sidebar({
           count={counts.trash}
           isActive={activeTab === 'trash'}
           onClick={() => onTabSelect('trash')}
+          color={NAV_COLORS.trash}
+          filled
         />
         <NavItem
           icon={<History size={18} />}
@@ -123,6 +137,8 @@ export default function Sidebar({
           count={transactionCount}
           isActive={activeTab === 'transactions'}
           onClick={() => onTabSelect('transactions')}
+          color={NAV_COLORS.transactions}
+          filled
         />
 
         <div style={{ 
@@ -171,27 +187,31 @@ export default function Sidebar({
             count={counts.tags[navItem] || counts.tags[navItem.toLowerCase()] || 0}
             isActive={activeTab === navItem.toLowerCase()}
             onClick={() => onTabSelect(navItem.toLowerCase())}
+            color={TAG_COLORS[navItem.toLowerCase()]?.accent}
+            filled
           />
         ))}
 
         {dynamicTags.map(tag => (
-  <NavItem
-    key={tag}
-    icon={
-      <span style={{
-        width: 8,
-        height: 8,
-        borderRadius: '50%',
-        backgroundColor: TAG_COLORS[tag.toLowerCase()]?.accent || '#C6B5A1',
-        display: 'inline-block'
-      }} />
-    }
-    label={`#${tag.toLowerCase()}`}
-    count={counts.tags[tag] || 0}
-    isActive={activeTab === tag.toLowerCase()}
-    onClick={() => onTabSelect(tag.toLowerCase())}
-  />
-))}
+          <NavItem
+            key={tag}
+            icon={
+              <span style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                backgroundColor: TAG_COLORS[tag.toLowerCase()]?.accent || '#C6B5A1',
+                display: 'inline-block'
+              }} />
+            }
+            label={`#${tag.toLowerCase()}`}
+            count={counts.tags[tag] || 0}
+            isActive={activeTab === tag.toLowerCase()}
+            onClick={() => onTabSelect(tag.toLowerCase())}
+            color={TAG_COLORS[tag.toLowerCase()]?.accent}
+            filled
+          />
+        ))}
         
         {tagSearchQuery && filteredFixedNav.length === 0 && dynamicTags.length === 0 && (
           <div style={{ padding: '8px 12px', fontSize: '12px', color: '#8A8581', fontStyle: 'italic' }}>
@@ -216,7 +236,8 @@ export default function Sidebar({
   );
 }
 
-function NavItem({ icon, label, count, isActive, onClick }: { icon: React.ReactNode, label: string, count: number, isActive: boolean, onClick: () => void }) {
+function NavItem({ icon, label, count, isActive, onClick, color, filled }: { icon: React.ReactNode, label: string, count: number, isActive: boolean, onClick: () => void, color?: string, filled?: boolean }) {
+  const activeColor = color || '#E39455';
   return (
     <div
       className="sidebar-item"
@@ -228,12 +249,18 @@ function NavItem({ icon, label, count, isActive, onClick }: { icon: React.ReactN
         padding: '10px 12px',
         borderRadius: '8px',
         cursor: 'pointer',
-        backgroundColor: isActive ? 'rgba(255,255,255,0.08)' : 'transparent',
+        backgroundColor: isActive
+          ? `${activeColor}33`
+          : filled
+          ? `${activeColor}1A`
+          : 'transparent',
+        borderLeft: isActive ? `3px solid ${activeColor}` : '3px solid transparent',
         color: isActive ? 'var(--text-sidebar-active)' : 'var(--text-sidebar)',
+        transition: 'all 0.2s ease',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', fontWeight: isActive ? 500 : 400 }}>
-        <span style={{ color: isActive ? '#E39455' : 'inherit', display: 'flex', alignItems: 'center' }}>
+        <span style={{ color: isActive || filled ? activeColor : 'inherit', display: 'flex', alignItems: 'center' }}>
           {icon}
         </span>
         <span style={{ color: isActive ? 'var(--text-sidebar-active)' : 'inherit' }}>

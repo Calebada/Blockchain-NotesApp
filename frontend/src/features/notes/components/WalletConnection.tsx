@@ -24,14 +24,21 @@ export default function WalletConnection({
   variant = "default",
 }: WalletConnectionProps) {
   const [selectedWalletId, setSelectedWalletId] = useState("");
+  const [isConnectHovered, setIsConnectHovered] = useState(false);
   const isSidebar = variant === "sidebar";
   const panelBorder = isSidebar ? "rgba(255, 255, 255, 0.1)" : "var(--border-light)";
-  const panelBackground = isSidebar ? "rgba(255, 255, 255, 0.05)" : "#FFFFFF";
+  const panelBackground = isSidebar
+    ? "linear-gradient(160deg, rgba(245, 165, 102, 0.09) 0%, rgba(255, 255, 255, 0.04) 100%)"
+    : "#FFFFFF";
   const textColor = isSidebar ? "#FFFFFF" : "var(--text-main)";
   const mutedColor = isSidebar ? "#A8A29E" : "var(--text-muted)";
-  const iconBackground = isSidebar ? "rgba(245, 165, 102, 0.14)" : "#F3EFEA";
+  const iconBackground = isSidebar
+    ? "linear-gradient(135deg, rgba(245, 165, 102, 0.22) 0%, rgba(245, 165, 102, 0.1) 100%)"
+    : "#F3EFEA";
   const iconColor = isSidebar ? "var(--accent-orange)" : "#6E5A47";
-  const actionBackground = isSidebar ? "var(--accent-orange)" : "#221811";
+  const actionBackground = isSidebar
+    ? (isConnectHovered ? "var(--accent-orange-hover)" : "var(--accent-orange)")
+    : "#221811";
   const actionColor = isSidebar ? "var(--bg-sidebar)" : "#FFFFFF";
   const disabledBackground = isSidebar ? "rgba(255, 255, 255, 0.18)" : "#A8A29E";
 
@@ -46,8 +53,8 @@ export default function WalletConnection({
       <div
         style={{
           border: `1px solid ${panelBorder}`,
-          borderRadius: "8px",
-          backgroundColor: panelBackground,
+          borderRadius: "10px",
+          background: panelBackground,
           padding: compact ? "10px 12px" : "14px",
           display: "flex",
           alignItems: "center",
@@ -93,7 +100,10 @@ export default function WalletConnection({
             justifyContent: "center",
             cursor: "pointer",
             flex: "0 0 auto",
+            transition: "background-color 0.2s",
           }}
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = isSidebar ? "rgba(239, 68, 68, 0.16)" : "#FEE2E2")}
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = isSidebar ? "rgba(255, 255, 255, 0.06)" : "#FFFFFF")}
         >
           <LogOut size={15} />
         </button>
@@ -105,27 +115,28 @@ export default function WalletConnection({
     <div
       style={{
         border: `1px solid ${panelBorder}`,
-        borderRadius: "8px",
-        backgroundColor: panelBackground,
-        padding: compact ? "10px 12px" : "14px",
+        borderRadius: "10px",
+        background: panelBackground,
+        padding: compact ? "12px 14px" : "16px",
         display: "flex",
         flexDirection: "column",
-        gap: "10px",
+        gap: "12px",
         minWidth: compact && !isSidebar ? "300px" : undefined,
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
         <div
           style={{
-            width: "34px",
-            height: "34px",
-            borderRadius: "8px",
-            backgroundColor: iconBackground,
+            width: "36px",
+            height: "36px",
+            borderRadius: "9px",
+            background: iconBackground,
             color: iconColor,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             flex: "0 0 auto",
+            boxShadow: isSidebar ? "inset 0 0 0 1px rgba(245, 165, 102, 0.2)" : "none",
           }}
         >
           <Wallet size={17} />
@@ -171,6 +182,8 @@ export default function WalletConnection({
           onClick={() =>
             void onConnect(selectedWalletId || wallets[0]?.id).catch(() => undefined)
           }
+          onMouseEnter={() => setIsConnectHovered(true)}
+          onMouseLeave={() => setIsConnectHovered(false)}
           disabled={isConnecting || wallets.length === 0}
           style={{
             border: "none",
@@ -179,13 +192,15 @@ export default function WalletConnection({
             color: actionColor,
             fontSize: "13px",
             fontWeight: 700,
-            padding: "10px 12px",
+            padding: "11px 12px",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             gap: "8px",
             cursor: isConnecting || wallets.length === 0 ? "not-allowed" : "pointer",
             flex: wallets.length > 1 ? "0 0 auto" : 1,
+            boxShadow: isSidebar && wallets.length > 0 ? "0 2px 8px rgba(245, 165, 102, 0.25)" : "none",
+            transition: "background-color 0.2s, box-shadow 0.2s",
           }}
         >
           {isConnecting ? <Loader2 size={15} className="animate-spin" /> : <Wallet size={15} />}
@@ -201,11 +216,12 @@ export default function WalletConnection({
             gap: "8px",
             alignItems: "flex-start",
             color: isSidebar ? "#FCA5A5" : "#991B1B",
-            backgroundColor: isSidebar ? "rgba(239, 68, 68, 0.16)" : "#FEE2E2",
+            backgroundColor: isSidebar ? "rgba(239, 68, 68, 0.14)" : "#FEE2E2",
+            border: isSidebar ? "1px solid rgba(239, 68, 68, 0.25)" : "1px solid transparent",
             borderRadius: "8px",
-            padding: "10px",
+            padding: "10px 12px",
             fontSize: "12px",
-            lineHeight: 1.4,
+            lineHeight: 1.45,
           }}
         >
           <AlertCircle
