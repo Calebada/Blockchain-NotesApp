@@ -76,7 +76,7 @@ export default function NotesPage() {
         onNewNote={notes.openNewNote}
         onTabSelect={notes.setActiveTab}
         walletAuth={walletAuth}
-        transactionCount={notes.activity.length}
+        transactionCount={notes.activityPagination.total}
       />
 
       <main style={{ flex: 1 }}>
@@ -108,8 +108,10 @@ export default function NotesPage() {
         ) : notes.activeTab === "transactions" ? (
           <TransactionHistoryPage
             activity={notes.activity}
+            pagination={notes.activityPagination}
             error={notes.activityError}
             walletAuth={walletAuth}
+            onPageChange={notes.setActivityPage}
           />
         ) : (
           <NotesList

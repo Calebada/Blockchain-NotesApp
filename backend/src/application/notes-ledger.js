@@ -18,10 +18,50 @@ const ACTIVITY_ACTIONS = {
   PERMANENT_DELETE_NOTE: "PERMANENT_DELETE_NOTE",
 };
 
+const DEFAULT_ACTIVITY_PAGE_SIZE = 10;
+const MAX_ACTIVITY_PAGE_SIZE = 50;
+
 function normalizeWalletAddress(walletAddress = "") {
   return typeof walletAddress === "string" && walletAddress.trim()
     ? walletAddress.trim()
     : "";
+}
+
+function normalizePagination(options = {}) {
+  const page = Number.isSafeInteger(options.page) && options.page > 0 ? options.page : 1;
+  const requestedPageSize =
+    Number.isSafeInteger(options.pageSize) && options.pageSize > 0
+      ? options.pageSize
+      : DEFAULT_ACTIVITY_PAGE_SIZE;
+
+  return {
+    page,
+    pageSize: Math.min(requestedPageSize, MAX_ACTIVITY_PAGE_SIZE),
+  };
+}
+
+function createEmptyActivityPagination(pagination) {
+  return {
+    page: pagination.page,
+    pageSize: pagination.pageSize,
+    total: 0,
+    totalPages: 0,
+    hasPreviousPage: false,
+    hasNextPage: false,
+  };
+}
+
+function createActivityPagination({ page, pageSize, total }) {
+  const totalPages = total > 0 ? Math.ceil(total / pageSize) : 0;
+
+  return {
+    page,
+    pageSize,
+    total,
+    totalPages,
+    hasPreviousPage: page > 1,
+    hasNextPage: totalPages > 0 && page < totalPages,
+  };
 }
 
 function getNoteDetailsFromBlock(block) {
@@ -262,17 +302,37 @@ class NotesLedger {
     };
   }
 
-  async getActivity(walletAddressOverride = "") {
+  async getActivity(walletAddressOverride = "", options = {}) {
     const walletAddress = normalizeWalletAddress(walletAddressOverride);
-    const activity = walletAddress
-      ? await this.repository.listActivity({ walletAddress })
-      : [];
+    const pagination = normalizePagination(options.pagination);
+
+    if (!walletAddress) {
+      return {
+        provider: this.provider,
+        network: this.client.network,
+        walletAddress,
+        activity: [],
+        pagination: createEmptyActivityPagination(pagination),
+      };
+    }
+
+    const activityPage = await this.repository.listActivity({
+      walletAddress,
+      ...pagination,
+    });
+    const activity = Array.isArray(activityPage)
+      ? activityPage
+      : activityPage.activity || [];
+    const total = Array.isArray(activityPage)
+      ? activity.length
+      : activityPage.total || 0;
 
     return {
       provider: this.provider,
       network: this.client.network,
       walletAddress,
       activity: await this.syncActivityStatuses(activity),
+      pagination: createActivityPagination({ ...pagination, total }),
     };
   }
 

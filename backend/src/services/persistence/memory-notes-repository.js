@@ -58,8 +58,13 @@ class MemoryNotesRepository {
     const activity = walletAddress
       ? this.activity.filter((entry) => entry.walletAddress === walletAddress)
       : this.activity;
+    const page = Number.isSafeInteger(options.page) && options.page > 0 ? options.page : 1;
+    const pageSize =
+      Number.isSafeInteger(options.pageSize) && options.pageSize > 0
+        ? options.pageSize
+        : activity.length || 10;
 
-    return [...activity].sort((left, right) => {
+    const sortedActivity = [...activity].sort((left, right) => {
       const timeDifference =
         new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
 
@@ -69,6 +74,12 @@ class MemoryNotesRepository {
 
       return Number(right.id) - Number(left.id);
     });
+    const start = (page - 1) * pageSize;
+
+    return {
+      activity: sortedActivity.slice(start, start + pageSize),
+      total: sortedActivity.length,
+    };
   }
 
   async recordActivity(entry) {

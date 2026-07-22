@@ -3,6 +3,7 @@ import type {
   BlockchainProof,
   ChainBlock,
   NoteActivity,
+  NoteActivityResponse,
   NoteTransactionIntent,
 } from "../../../types/blockchain";
 import {
@@ -53,6 +54,16 @@ export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = 
     localStorage.setItem("pinnedNoteIds", JSON.stringify(Array.from(pinnedNoteIds)));
   }, [pinnedNoteIds]);
   const [activity, setActivity] = useState<NoteActivity[]>([]);
+  const [activityPagination, setActivityPagination] = useState<
+    NoteActivityResponse["pagination"]
+  >({
+    page: 1,
+    pageSize: 10,
+    total: 0,
+    totalPages: 0,
+    hasPreviousPage: false,
+    hasNextPage: false,
+  });
   const [activityError, setActivityError] = useState("");
 
   const allNotes = useMemo<FrontendNote[]>(
@@ -134,9 +145,17 @@ export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = 
     }
   }, []);
 
-  const loadActivity = useCallback(async () => {
+  const loadActivity = useCallback(async (page = activityPagination.page) => {
     if (!walletAddress) {
       setActivity([]);
+      setActivityPagination((previous) => ({
+        ...previous,
+        page: 1,
+        total: 0,
+        totalPages: 0,
+        hasPreviousPage: false,
+        hasNextPage: false,
+      }));
       setActivityError("");
       return;
     }
@@ -144,17 +163,32 @@ export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = 
     setActivityError("");
 
     try {
-      const activityState = await fetchActivity(walletAddress);
+      const activityState = await fetchActivity(walletAddress, {
+        page,
+        pageSize: activityPagination.pageSize,
+      });
       setActivity(activityState.activity);
+      setActivityPagination(activityState.pagination);
     } catch (requestError) {
       setActivityError(getApiError(requestError, "Unable to load note activity."));
     }
-  }, [walletAddress]);
+  }, [activityPagination.page, activityPagination.pageSize, walletAddress]);
+
+  const setActivityPage = useCallback(
+    (page: number) => {
+      const nextPage = Math.max(1, page);
+      setActivityPagination((previous) => ({ ...previous, page: nextPage }));
+    },
+    []
+  );
 
   useEffect(() => {
     void loadNotes();
+  }, [loadNotes]);
+
+  useEffect(() => {
     void loadActivity();
-  }, [loadActivity, loadNotes]);
+  }, [loadActivity]);
 
   useEffect(() => {
     const refreshTimer = window.setInterval(() => {
@@ -195,7 +229,7 @@ export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = 
         await addNote({ author, walletAddress, ...values, ...chainProof });
       }
 
-      await Promise.all([loadNotes(), loadActivity()]);
+      await Promise.all([loadNotes(), loadActivity(1)]);
       closeModal();
     } catch (requestError) {
       setModalError(getApiError(requestError, "The note could not be saved."));
@@ -250,7 +284,7 @@ export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = 
       });
       await deleteNote(id, walletAddress, chainProof);
       removePinnedNote(id);
-      await Promise.all([loadNotes(), loadActivity()]);
+      await Promise.all([loadNotes(), loadActivity(1)]);
     } catch (requestError) {
       setGlobalError(getApiError(requestError, "The note could not be deleted."));
     }
@@ -274,7 +308,7 @@ export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = 
         content: note?.content,
       });
       await restoreNote(id, walletAddress, chainProof);
-      await Promise.all([loadNotes(), loadActivity()]);
+      await Promise.all([loadNotes(), loadActivity(1)]);
     } catch (requestError) {
       setGlobalError(getApiError(requestError, "The note could not be restored."));
     }
@@ -303,7 +337,7 @@ export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = 
       });
       await hardDeleteNote(id, walletAddress, chainProof);
       removePinnedNote(id);
-      await Promise.all([loadNotes(), loadActivity()]);
+      await Promise.all([loadNotes(), loadActivity(1)]);
     } catch (requestError) {
       setGlobalError(getApiError(requestError, "The note could not be permanently deleted."));
     }
@@ -348,6 +382,7 @@ export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = 
     globalError,
     activity,
     activityError,
+    activityPagination,
     isLoading,
     isModalOpen,
     isSubmitting,
@@ -358,6 +393,7 @@ export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = 
     permanentlyDeleteNote,
     restoreDeletedNote,
     saveNote,
+    setActivityPage,
     setActiveTab,
     setSearchQuery,
     title,

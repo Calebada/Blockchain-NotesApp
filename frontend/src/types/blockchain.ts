@@ -112,4 +112,12 @@ export type NoteActivityResponse = {
   network: string;
   walletAddress: string;
   activity: NoteActivity[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+    hasPreviousPage: boolean;
+    hasNextPage: boolean;
+  };
 };

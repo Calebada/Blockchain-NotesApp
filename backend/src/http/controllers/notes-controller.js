@@ -12,6 +12,16 @@ function getWalletAddressFromRequest(req) {
   return "";
 }
 
+function getActivityPaginationFromRequest(req) {
+  const page = Number.parseInt(req.query.page, 10);
+  const pageSize = Number.parseInt(req.query.pageSize, 10);
+
+  return {
+    page: Number.isSafeInteger(page) && page > 0 ? page : 1,
+    pageSize: Number.isSafeInteger(pageSize) && pageSize > 0 ? pageSize : 10,
+  };
+}
+
 function getChainDetailsFromRequest(req) {
   return {
     proofHash: typeof req.body?.proofHash === "string" ? req.body.proofHash : "",
@@ -59,7 +69,11 @@ function createNotesController(notesLedger) {
     },
 
     async getActivity(req, res) {
-      res.json(await notesLedger.getActivity(getWalletAddressFromRequest(req)));
+      res.json(
+        await notesLedger.getActivity(getWalletAddressFromRequest(req), {
+          pagination: getActivityPaginationFromRequest(req),
+        })
+      );
     },
 
     async getWalletTransactions(req, res) {

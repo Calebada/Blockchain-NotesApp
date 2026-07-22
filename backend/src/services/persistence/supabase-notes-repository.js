@@ -155,24 +155,32 @@ class SupabaseNotesRepository {
   }
 
   async listActivity(options = {}) {
+    const page = Number.isSafeInteger(options.page) && options.page > 0 ? options.page : 1;
+    const pageSize =
+      Number.isSafeInteger(options.pageSize) && options.pageSize > 0 ? options.pageSize : 10;
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
     let query = this.client
       .from("note_activity")
-      .select(ACTIVITY_COLUMNS)
+      .select(ACTIVITY_COLUMNS, { count: "exact" })
       .order("created_at", { ascending: false })
       .order("id", { ascending: false })
-      .limit(50);
+      .range(from, to);
 
     if (options.walletAddress) {
       query = query.eq("wallet_address", options.walletAddress);
     }
 
-    const { data, error } = await query;
+    const { data, error, count } = await query;
 
     if (error) {
       throw createStoreError("Unable to load note activity from Supabase", error);
     }
 
-    return data.map(toActivityEntry);
+    return {
+      activity: data.map(toActivityEntry),
+      total: count || 0,
+    };
   }
 
   async recordActivity(entry) {
