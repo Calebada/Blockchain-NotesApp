@@ -1,9 +1,7 @@
 import React from 'react';
 import { Search, Plus } from 'lucide-react';
 import type { FrontendNote } from '../types/note';
-import type { WalletTransactionsResponse } from '../../../types/blockchain';
 import NoteCard from './NoteCard';
-import WalletTransactionsPanel from '../../wallet/components/WalletTransactionsPanel';
 
 interface NotesListProps {
   title: string;
@@ -16,10 +14,6 @@ interface NotesListProps {
   onRestoreNote?: (id?: string) => void;
   onHardDeleteNote?: (id?: string) => void;
   onTogglePin?: (id: string) => void;
-  walletTransactions: WalletTransactionsResponse | null;
-  isWalletLoading: boolean;
-  walletError: string;
-  onRefreshWallet: () => void;
 }
 
 function formatNoteDate(value?: string | null) {
@@ -52,10 +46,6 @@ export default function NotesList({
   onRestoreNote,
   onHardDeleteNote,
   onTogglePin,
-  walletTransactions,
-  isWalletLoading,
-  walletError,
-  onRefreshWallet,
 }: NotesListProps) {
   const [isSearchFocused, setIsSearchFocused] = React.useState(false);
   return (
@@ -135,13 +125,6 @@ export default function NotesList({
           </button>
         </div>
       </div>
-
-      <WalletTransactionsPanel
-        walletTransactions={walletTransactions}
-        isLoading={isWalletLoading}
-        error={walletError}
-        onRefresh={onRefreshWallet}
-      />
 
       {notes.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '64px', color: 'var(--text-muted)' }}>

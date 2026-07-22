@@ -67,10 +67,6 @@ export default function NotesPage() {
             onRestoreNote={notes.restoreDeletedNote}
             onHardDeleteNote={notes.permanentlyDeleteNote}
             onTogglePin={notes.togglePinnedNote}
-            walletTransactions={notes.walletTransactions}
-            isWalletLoading={notes.isWalletLoading}
-            walletError={notes.walletError}
-            onRefreshWallet={() => notes.refreshWalletTransactions()}
           />
         )}
       </main>

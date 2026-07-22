@@ -4,7 +4,6 @@ import type {
   ChainBlock,
   NoteActivity,
   NoteTransactionIntent,
-  WalletTransactionsResponse,
 } from "../../../types/blockchain";
 import {
   addNote,
@@ -12,7 +11,6 @@ import {
   fetchActivity,
   fetchChain,
   fetchTrash,
-  fetchWalletTransactions,
   getApiError,
   hardDeleteNote,
   restoreNote,
@@ -43,11 +41,7 @@ export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [modalError, setModalError] = useState("");
   const [pinnedNoteIds, setPinnedNoteIds] = useState<Set<string>>(new Set());
-  const [walletTransactions, setWalletTransactions] =
-    useState<WalletTransactionsResponse | null>(null);
   const [activity, setActivity] = useState<NoteActivity[]>([]);
-  const [isWalletLoading, setIsWalletLoading] = useState(true);
-  const [walletError, setWalletError] = useState("");
   const [activityError, setActivityError] = useState("");
 
   const allNotes = useMemo<FrontendNote[]>(
@@ -146,41 +140,18 @@ export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = 
     }
   }, [walletAddress]);
 
-  const loadWalletTransactions = useCallback(
-    async ({ silent = false }: { silent?: boolean } = {}) => {
-      if (!silent) {
-        setIsWalletLoading(true);
-      }
-
-      setWalletError("");
-
-      try {
-        setWalletTransactions(await fetchWalletTransactions(walletAddress));
-      } catch (requestError) {
-        setWalletError(
-          getApiError(requestError, "Unable to load live wallet transactions.")
-        );
-      } finally {
-        setIsWalletLoading(false);
-      }
-    },
-    [walletAddress]
-  );
-
   useEffect(() => {
     void loadNotes();
     void loadActivity();
-    void loadWalletTransactions();
-  }, [loadActivity, loadNotes, loadWalletTransactions]);
+  }, [loadActivity, loadNotes]);
 
   useEffect(() => {
     const refreshTimer = window.setInterval(() => {
-      void loadWalletTransactions({ silent: true });
       void loadActivity();
     }, 15000);
 
     return () => window.clearInterval(refreshTimer);
-  }, [loadActivity, loadWalletTransactions]);
+  }, [loadActivity]);
 
   async function saveNote(values: NoteFormValues) {
     setModalError("");
@@ -213,7 +184,7 @@ export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = 
         await addNote({ author, walletAddress, ...values, ...chainProof });
       }
 
-      await Promise.all([loadNotes(), loadWalletTransactions(), loadActivity()]);
+      await Promise.all([loadNotes(), loadActivity()]);
       closeModal();
     } catch (requestError) {
       setModalError(getApiError(requestError, "The note could not be saved."));
@@ -268,7 +239,7 @@ export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = 
       });
       await deleteNote(id, walletAddress, chainProof);
       removePinnedNote(id);
-      await Promise.all([loadNotes(), loadWalletTransactions(), loadActivity()]);
+      await Promise.all([loadNotes(), loadActivity()]);
     } catch (requestError) {
       setGlobalError(getApiError(requestError, "The note could not be deleted."));
     }
@@ -292,7 +263,7 @@ export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = 
         content: note?.content,
       });
       await restoreNote(id, walletAddress, chainProof);
-      await Promise.all([loadNotes(), loadWalletTransactions(), loadActivity()]);
+      await Promise.all([loadNotes(), loadActivity()]);
     } catch (requestError) {
       setGlobalError(getApiError(requestError, "The note could not be restored."));
     }
@@ -321,7 +292,7 @@ export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = 
       });
       await hardDeleteNote(id, walletAddress, chainProof);
       removePinnedNote(id);
-      await Promise.all([loadNotes(), loadWalletTransactions(), loadActivity()]);
+      await Promise.all([loadNotes(), loadActivity()]);
     } catch (requestError) {
       setGlobalError(getApiError(requestError, "The note could not be permanently deleted."));
     }
@@ -369,7 +340,6 @@ export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = 
     isLoading,
     isModalOpen,
     isSubmitting,
-    isWalletLoading,
     modalError,
     moveNoteToTrash,
     openEditNote,
@@ -381,9 +351,6 @@ export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = 
     setSearchQuery,
     title,
     togglePinnedNote,
-    walletError,
-    walletTransactions,
-    refreshWalletTransactions: loadWalletTransactions,
   };
 }
 

@@ -6,7 +6,6 @@ import type {
   NoteActivityResponse,
   NoteTransactionIntent,
   PreparedNoteTransaction,
-  WalletTransactionsResponse,
 } from "../../../types/blockchain";
 import type { CreateNoteRequest, UpdateNoteRequest } from "../types/note";
 
@@ -28,16 +27,6 @@ export async function fetchActivity(walletAddress?: string | null) {
   const response = await axios.get<NoteActivityResponse>(`${API_BASE_URL}/activity`, {
     params: walletAddress ? { walletAddress } : undefined,
   });
-  return response.data;
-}
-
-export async function fetchWalletTransactions(walletAddress?: string | null) {
-  const response = await axios.get<WalletTransactionsResponse>(
-    `${API_BASE_URL}/wallet/transactions`,
-    {
-      params: walletAddress ? { walletAddress } : undefined,
-    }
-  );
   return response.data;
 }
 
