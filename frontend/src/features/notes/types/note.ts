@@ -32,6 +32,7 @@ export type CreateNoteRequest = {
   author: string;
   walletAddress?: string | null;
   proofHash: string;
+  proofPayload: import("../../../types/blockchain").NormalizedNoteProofIntent;
   cardanoTxHash: string;
   confirmationStatus: "Pending";
   validUntilSlot: number;

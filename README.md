@@ -18,6 +18,7 @@ A full-stack notes application that publishes **privacy-preserving proofs** of e
 - [Frontend Setup](#frontend-setup)
 - [Eternl Preprod Wallet Setup](#eternl-preprod-wallet-setup)
 - [Development Flow](#development-flow)
+- [Future Work](#future-work)
 - [Screenshots](#screenshots)
 - [Presenting This Project](#presenting-this-project)
 
@@ -27,11 +28,12 @@ A full-stack notes application that publishes **privacy-preserving proofs** of e
 
 Notes are created and edited through a normal, editorial-styled notes UI. Behind the scenes, every note action triggers a small Cardano transaction:
 
-1. The note's content is hashed (SHA-256) — the hash, not the content, is what gets recorded.
+1. A normalized snapshot of the note action (action, wallet, note ID, title, tag, and content) is hashed with SHA-256. The hash, not the private snapshot, is placed on-chain.
 2. That hash plus an action label is placed into the transaction's **metadata**.
 3. The connected CIP-30 wallet (e.g. Eternl) signs the transaction.
 4. Blockfrost submits it to the Cardano Preprod network and later confirms it.
-5. The app's **Transaction History** view tracks the transaction from `Pending` → `Confirmed` (or `Failed`), showing the confirmed block hash, block height, network, and a link to view it on a Preprod explorer.
+5. As soon as submission succeeds, the app persists the exact proof hash, transaction hash, action snapshot, wallet, confirmation state, and expiry slot before attempting the note write.
+6. The **Transaction History** view tracks confirmation and block details, can verify the transaction and metadata through Blockfrost, and can retry only the note write after a partial failure.
 
 This means the notes app can prove *"this exact note content existed, unchanged, at this point in time"* without ever putting private note content on a public ledger.
 
@@ -52,7 +54,7 @@ This means the notes app can prove *"this exact note content existed, unchanged,
 
 Key design decisions:
 
-- **`proofHash` vs `cardanoTxHash`** are tracked separately. `proofHash` is the SHA-256 of the note content; `cardanoTxHash` is the actual Cardano transaction ID once it's submitted. Keeping these distinct makes it clear what's being proven versus what's the on-chain reference.
+- **`proofHash` vs `cardanoTxHash`** are tracked separately. `proofHash` is the SHA-256 of the immutable normalized action snapshot; `cardanoTxHash` is the actual Cardano transaction ID. Historical proof hashes and action snapshots are stored and are never regenerated from the latest Cardano block.
 - **Only the fee is spent.** Each transaction spends the minimal network fee from test ADA and returns the rest to the wallet — no real value is transferred, and no mainnet ADA is ever required (mainnet is intentionally disabled for this project).
 - **Note content stays private.** Titles and note bodies are never included in Cardano metadata; only the hash and action name are.
 - **Pending transactions are re-checked automatically.** Whenever Transaction History loads, any `Pending` entries are checked against Blockfrost — confirmed ones get their block hash/height filled in, and unconfirmed ones that have expired become `Failed`.
@@ -166,7 +168,7 @@ SUPABASE_SERVICE_ROLE_KEY=your_backend_only_service_role_key
 SUPABASE_NOTES_TABLE=notes
 ```
 
-Keep `SUPABASE_SERVICE_ROLE_KEY` in the backend only. If Supabase variables are omitted, the app falls back to in-memory storage for local development. The `notes` table stores note content. The `note_activity` table stores wallet-scoped audit entries with separate `proof_hash` and `cardano_tx_hash` fields, confirmation status, expiry slot, and confirmed block details.
+Keep `SUPABASE_SERVICE_ROLE_KEY` in the backend only. If Supabase variables are omitted, the app falls back to in-memory storage for local development. The `notes` table stores note content and persisted local block fields. The `note_activity` table stores each immutable action snapshot with separate `proof_hash` and `cardano_tx_hash` fields, wallet, note-save state, confirmation status, expiry slot, and confirmed block hash/height/slot/epoch/time.
 
 To create the table automatically from the repo, copy the Supabase Postgres connection string into `backend/.env`:
 
@@ -202,6 +204,8 @@ Available endpoints:
 | `GET` | `/api/chain` | Fetch local anchored notes plus the latest Cardano block from Blockfrost |
 | `GET` | `/api/notes/trash` | Fetch soft-deleted notes |
 | `GET` | `/api/activity` | Fetch recent note activity tracked by connected wallet address |
+| `POST` | `/api/activity/:id/verify` | Verify transaction existence, metadata proof hash, and recorded action snapshot |
+| `POST` | `/api/activity/:id/retry-note-save` | Retry only failed note persistence using the existing Cardano proof |
 | `POST` | `/api/transactions/prepare` | Build an unsigned Preprod metadata transaction from CIP-30 wallet UTXOs |
 | `POST` | `/api/transactions/submit` | Assemble wallet witnesses and submit the signed transaction through Blockfrost |
 | `POST` | `/api/notes` | Add a note — JSON body `{ "author": "Ada", "content": "My secured note" }` |
@@ -242,6 +246,19 @@ The transaction spends only the network fee from test ADA and sends the remainin
 5. Inspect the proof hash, Cardano transaction ID, status, and confirmed block in Transaction History.
 
 With Supabase configured, restarting the backend preserves note activity and confirmation state. Pending entries are checked against Blockfrost whenever activity loads; confirmed entries receive their Cardano block hash and height, while expired unconfirmed transactions become `Failed`.
+
+If Cardano submission succeeds but the note write fails, the UI keeps and displays the transaction hash. **Retry saving note** reuses the stored proof and action snapshot; it does not ask the wallet to sign again or submit a second transaction.
+
+## Future Work
+
+The school-project scope intentionally leaves these production concerns for later:
+
+- Full wallet authentication and signed ownership challenges
+- User sessions and multi-user note ownership/authorization
+- Background queues for confirmation polling and retries
+- Sophisticated reconciliation for rare cross-system or concurrent-write failures
+
+The current implementation focuses on durable proof records, explicit proof verification, and safe retry of the off-chain note write.
 
 ## Screenshots
 

@@ -79,8 +79,14 @@ export type NoteActivity = {
   confirmationStatus: "Pending" | "Confirmed" | "Failed";
   cardanoBlockHash: string;
   cardanoBlockHeight: number | null;
+  cardanoBlockSlot: number | null;
+  cardanoBlockEpoch: number | null;
+  cardanoBlockTime: string | null;
   validUntilSlot: number | null;
   confirmedAt: string | null;
+  proofPayload: NormalizedNoteProofIntent | null;
+  noteSaveStatus: "Pending" | "Saved" | "Failed";
+  noteSaveError: string;
   network: string;
   createdAt: string;
 };
@@ -93,18 +99,48 @@ export type NoteTransactionIntent = {
   content?: string;
 };
 
+export type NormalizedNoteProofIntent = {
+  version: 1;
+  action: NoteActivityAction;
+  walletAddress: string;
+  noteId: string;
+  title: string;
+  tag: string;
+  content: string;
+};
+
 export type BlockchainProof = {
   proofHash: string;
+  proofPayload: NormalizedNoteProofIntent;
   cardanoTxHash: string;
   confirmationStatus: "Pending";
   validUntilSlot: number;
+  proofRecordId: string | null;
+  proofPersistenceStatus: "Saved" | "Failed";
+  warning: string;
 };
 
 export type PreparedNoteTransaction = {
   unsignedTx: string;
   proofHash: string;
+  proofPayload: NormalizedNoteProofIntent;
   validUntilSlot: number;
   network: "preprod";
+};
+
+export type ProofVerificationResult = {
+  verified: boolean;
+  transactionExists: boolean;
+  metadataMatches: boolean;
+  actionMatches: boolean;
+  message: string;
+  block?: {
+    hash: string;
+    height: number | null;
+    slot: number | null;
+    epoch: number | null;
+    time: string | null;
+  };
 };
 
 export type NoteActivityResponse = {

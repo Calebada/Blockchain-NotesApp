@@ -5,6 +5,7 @@ import type {
   NoteActivity,
   NoteActivityResponse,
   NoteTransactionIntent,
+  ProofVerificationResult,
 } from "../../../types/blockchain";
 import {
   addNote,
@@ -14,8 +15,10 @@ import {
   fetchTrash,
   getApiError,
   hardDeleteNote,
+  retryActivityNoteSave,
   restoreNote,
   updateNote,
+  verifyActivityProof,
 } from "../services/notes-api";
 import { NOTE_TAG_OPTIONS } from "../types/note";
 import type {
@@ -29,6 +32,15 @@ type UseNotesOptions = {
   walletAddress?: string | null;
   publishNoteProof?: (intent: NoteTransactionIntent) => Promise<BlockchainProof>;
 };
+
+type PendingNoteSave = {
+  intent: NoteTransactionIntent;
+  author: string;
+  proof: BlockchainProof;
+  error: string;
+};
+
+const PENDING_NOTE_SAVE_STORAGE_KEY = "notetify.pendingNoteSave";
 
 export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = {}) {
   const [chain, setChain] = useState<ChainBlock[]>([]);
@@ -53,6 +65,7 @@ export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = 
   useEffect(() => {
     localStorage.setItem("pinnedNoteIds", JSON.stringify(Array.from(pinnedNoteIds)));
   }, [pinnedNoteIds]);
+
   const [activity, setActivity] = useState<NoteActivity[]>([]);
   const [activityPagination, setActivityPagination] = useState<
     NoteActivityResponse["pagination"]
@@ -65,6 +78,39 @@ export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = 
     hasNextPage: false,
   });
   const [activityError, setActivityError] = useState("");
+  const [proofVerifications, setProofVerifications] = useState<
+    Record<string, ProofVerificationResult>
+  >({});
+  const [verifyingProofIds, setVerifyingProofIds] = useState<Set<string>>(
+    () => new Set()
+  );
+  const [retryingActivityIds, setRetryingActivityIds] = useState<Set<string>>(
+    () => new Set()
+  );
+  const [proofActionErrors, setProofActionErrors] = useState<
+    Record<string, string>
+  >({});
+  const [pendingNoteSave, setPendingNoteSave] = useState<PendingNoteSave | null>(
+    () => {
+      try {
+        const saved = localStorage.getItem(PENDING_NOTE_SAVE_STORAGE_KEY);
+        return saved ? (JSON.parse(saved) as PendingNoteSave) : null;
+      } catch {
+        return null;
+      }
+    }
+  );
+
+  useEffect(() => {
+    if (pendingNoteSave) {
+      localStorage.setItem(
+        PENDING_NOTE_SAVE_STORAGE_KEY,
+        JSON.stringify(pendingNoteSave)
+      );
+    } else {
+      localStorage.removeItem(PENDING_NOTE_SAVE_STORAGE_KEY);
+    }
+  }, [pendingNoteSave]);
 
   const allNotes = useMemo<FrontendNote[]>(
     () => [...chain].reverse().map((block) => toFrontendNote(block, pinnedNoteIds)),
@@ -208,14 +254,16 @@ export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = 
 
     setIsSubmitting(true);
     setModalError("");
+    const author = walletAddress || editingNote?.author || "Me";
+    const intent: NoteTransactionIntent = {
+      action: editingNoteId ? "UPDATE_NOTE" : "CREATE_NOTE",
+      noteId: editingNoteId || undefined,
+      ...values,
+    };
+    let chainProof: BlockchainProof | null = null;
 
     try {
-      const author = walletAddress || editingNote?.author || "Me";
-      const chainProof = await publishNoteProof({
-        action: editingNoteId ? "UPDATE_NOTE" : "CREATE_NOTE",
-        noteId: editingNoteId || undefined,
-        ...values,
-      });
+      chainProof = await publishNoteProof(intent);
 
       if (editingNoteId) {
         await updateNote({
@@ -229,10 +277,23 @@ export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = 
         await addNote({ author, walletAddress, ...values, ...chainProof });
       }
 
+      setPendingNoteSave(null);
       await Promise.all([loadNotes(), loadActivity(1)]);
       closeModal();
     } catch (requestError) {
-      setModalError(getApiError(requestError, "The note could not be saved."));
+      const message = getApiError(requestError, "The note could not be saved.");
+
+      if (chainProof) {
+        rememberPendingNoteSave(intent, author, chainProof, message);
+      }
+
+      setModalError(
+        chainProof
+          ? `The blockchain transaction succeeded (${formatHash(
+              chainProof.cardanoTxHash
+            )}), but the note was not saved. Use "Retry saving note" below.`
+          : message
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -272,21 +333,28 @@ export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = 
     }
 
     setGlobalError("");
+    const note = allNotes.find((candidate) => candidate.id === id);
+    const intent: NoteTransactionIntent = {
+      action: "DELETE_NOTE",
+      noteId: id,
+      title: note?.title,
+      tag: note?.tag,
+      content: note?.content,
+    };
+    let chainProof: BlockchainProof | null = null;
 
     try {
-      const note = allNotes.find((candidate) => candidate.id === id);
-      const chainProof = await createChainProof({
-        action: "DELETE_NOTE",
-        noteId: id,
-        title: note?.title,
-        tag: note?.tag,
-        content: note?.content,
-      });
+      chainProof = await createChainProof(intent);
       await deleteNote(id, walletAddress, chainProof);
+      setPendingNoteSave(null);
       removePinnedNote(id);
       await Promise.all([loadNotes(), loadActivity(1)]);
     } catch (requestError) {
-      setGlobalError(getApiError(requestError, "The note could not be deleted."));
+      const message = getApiError(requestError, "The note could not be deleted.");
+      if (chainProof) {
+        rememberPendingNoteSave(intent, walletAddress || "Me", chainProof, message);
+      }
+      setGlobalError(chainProof ? partialSaveMessage(chainProof) : message);
     }
   }
 
@@ -297,20 +365,27 @@ export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = 
     }
 
     setGlobalError("");
+    const note = trashNotes.find((candidate) => candidate.id === id);
+    const intent: NoteTransactionIntent = {
+      action: "RESTORE_NOTE",
+      noteId: id,
+      title: note?.title,
+      tag: note?.tag,
+      content: note?.content,
+    };
+    let chainProof: BlockchainProof | null = null;
 
     try {
-      const note = trashNotes.find((candidate) => candidate.id === id);
-      const chainProof = await createChainProof({
-        action: "RESTORE_NOTE",
-        noteId: id,
-        title: note?.title,
-        tag: note?.tag,
-        content: note?.content,
-      });
+      chainProof = await createChainProof(intent);
       await restoreNote(id, walletAddress, chainProof);
+      setPendingNoteSave(null);
       await Promise.all([loadNotes(), loadActivity(1)]);
     } catch (requestError) {
-      setGlobalError(getApiError(requestError, "The note could not be restored."));
+      const message = getApiError(requestError, "The note could not be restored.");
+      if (chainProof) {
+        rememberPendingNoteSave(intent, walletAddress || "Me", chainProof, message);
+      }
+      setGlobalError(chainProof ? partialSaveMessage(chainProof) : message);
     }
   }
 
@@ -325,21 +400,33 @@ export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = 
     }
 
     setGlobalError("");
+    const note = [...allNotes, ...trashNotes].find(
+      (candidate) => candidate.id === id
+    );
+    const intent: NoteTransactionIntent = {
+      action: "PERMANENT_DELETE_NOTE",
+      noteId: id,
+      title: note?.title,
+      tag: note?.tag,
+      content: note?.content,
+    };
+    let chainProof: BlockchainProof | null = null;
 
     try {
-      const note = [...allNotes, ...trashNotes].find((candidate) => candidate.id === id);
-      const chainProof = await createChainProof({
-        action: "PERMANENT_DELETE_NOTE",
-        noteId: id,
-        title: note?.title,
-        tag: note?.tag,
-        content: note?.content,
-      });
+      chainProof = await createChainProof(intent);
       await hardDeleteNote(id, walletAddress, chainProof);
+      setPendingNoteSave(null);
       removePinnedNote(id);
       await Promise.all([loadNotes(), loadActivity(1)]);
     } catch (requestError) {
-      setGlobalError(getApiError(requestError, "The note could not be permanently deleted."));
+      const message = getApiError(
+        requestError,
+        "The note could not be permanently deleted."
+      );
+      if (chainProof) {
+        rememberPendingNoteSave(intent, walletAddress || "Me", chainProof, message);
+      }
+      setGlobalError(chainProof ? partialSaveMessage(chainProof) : message);
     }
   }
 
@@ -373,6 +460,140 @@ export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = 
     return publishNoteProof(intent);
   }
 
+  function rememberPendingNoteSave(
+    intent: NoteTransactionIntent,
+    author: string,
+    proof: BlockchainProof,
+    error: string
+  ) {
+    setPendingNoteSave({ intent, author, proof, error });
+  }
+
+  async function retryPendingNoteSave() {
+    if (!pendingNoteSave) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setGlobalError("");
+    setModalError("");
+
+    try {
+      await saveWithExistingProof(pendingNoteSave);
+      setPendingNoteSave(null);
+      await Promise.all([loadNotes(), loadActivity(1)]);
+      closeModal();
+    } catch (requestError) {
+      const error = getApiError(
+        requestError,
+        "The note still could not be saved. The existing transaction hash remains preserved."
+      );
+      setPendingNoteSave((previous) => (previous ? { ...previous, error } : null));
+      setGlobalError(error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function saveWithExistingProof(recovery: PendingNoteSave) {
+    const { intent, author, proof } = recovery;
+    const noteId = intent.noteId;
+
+    if (intent.action === "CREATE_NOTE") {
+      await addNote({
+        author,
+        walletAddress: proof.proofPayload.walletAddress,
+        title: intent.title || "",
+        tag: normalizeTag(intent.tag),
+        content: intent.content || "",
+        ...proof,
+      });
+      return;
+    }
+    if (intent.action === "UPDATE_NOTE") {
+      await updateNote({
+        id: noteId || "",
+        author,
+        walletAddress: proof.proofPayload.walletAddress,
+        title: intent.title || "",
+        tag: normalizeTag(intent.tag),
+        content: intent.content || "",
+        ...proof,
+      });
+      return;
+    }
+    if (intent.action === "DELETE_NOTE") {
+      await deleteNote(noteId, proof.proofPayload.walletAddress, proof);
+      return;
+    }
+    if (intent.action === "RESTORE_NOTE") {
+      await restoreNote(noteId, proof.proofPayload.walletAddress, proof);
+      return;
+    }
+
+    await hardDeleteNote(noteId, proof.proofPayload.walletAddress, proof);
+  }
+
+  async function verifyProof(activityId: string) {
+    if (!walletAddress) {
+      return;
+    }
+
+    setVerifyingProofIds((previous) => new Set(previous).add(activityId));
+    setProofActionErrors((previous) => ({ ...previous, [activityId]: "" }));
+
+    try {
+      const verification = await verifyActivityProof(activityId, walletAddress);
+      setProofVerifications((previous) => ({
+        ...previous,
+        [activityId]: verification,
+      }));
+      await loadActivity();
+    } catch (requestError) {
+      setProofActionErrors((previous) => ({
+        ...previous,
+        [activityId]: getApiError(requestError, "Unable to verify this proof."),
+      }));
+    } finally {
+      setVerifyingProofIds((previous) => {
+        const next = new Set(previous);
+        next.delete(activityId);
+        return next;
+      });
+    }
+  }
+
+  async function retryActivitySave(activityId: string) {
+    if (!walletAddress) {
+      return;
+    }
+
+    setRetryingActivityIds((previous) => new Set(previous).add(activityId));
+    setProofActionErrors((previous) => ({ ...previous, [activityId]: "" }));
+
+    try {
+      await retryActivityNoteSave(activityId, walletAddress);
+      setPendingNoteSave((previous) =>
+        previous?.proof.proofRecordId === activityId ? null : previous
+      );
+      await Promise.all([loadNotes(), loadActivity()]);
+    } catch (requestError) {
+      setProofActionErrors((previous) => ({
+        ...previous,
+        [activityId]: getApiError(
+          requestError,
+          "The note still could not be saved."
+        ),
+      }));
+    } finally {
+      setRetryingActivityIds((previous) => {
+        const next = new Set(previous);
+        next.delete(activityId);
+        return next;
+      });
+    }
+  }
+
   return {
     activeTab,
     closeModal,
@@ -383,6 +604,11 @@ export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = 
     activity,
     activityError,
     activityPagination,
+    pendingNoteSave,
+    proofActionErrors,
+    proofVerifications,
+    retryingActivityIds,
+    verifyingProofIds,
     isLoading,
     isModalOpen,
     isSubmitting,
@@ -392,18 +618,33 @@ export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = 
     openNewNote,
     permanentlyDeleteNote,
     restoreDeletedNote,
+    retryActivitySave,
+    retryPendingNoteSave,
     saveNote,
     setActivityPage,
     setActiveTab,
     setSearchQuery,
     title,
     togglePinnedNote,
+    verifyProof,
   };
 }
 
 const missingNoteIdMessage =
   "This note is missing its backend ID. Restart the backend server, reload the app, and try again.";
 const disconnectedWalletMessage = "Connect your Preprod wallet before saving this note.";
+
+function formatHash(value: string) {
+  return value.length <= 20
+    ? value
+    : `${value.slice(0, 10)}...${value.slice(-10)}`;
+}
+
+function partialSaveMessage(proof: BlockchainProof) {
+  return `The blockchain transaction succeeded (${formatHash(
+    proof.cardanoTxHash
+  )}), but the note action was not saved. Use "Retry saving note".`;
+}
 
 function sortPinnedFirst(left: FrontendNote, right: FrontendNote) {
   return Number(right.isPinned) - Number(left.isPinned);

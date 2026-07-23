@@ -3,7 +3,9 @@ const { AppError } = require("../../common/app-error");
 const { createSupabaseConfig } = require("../../config/supabase-config");
 const { hashNoteBlock } = require("../../domain/note-block");
 
-function toDatabaseRow(block) {
+const LEGACY_GENESIS_HASH = "0".repeat(64);
+
+function toDatabaseRow(block, options = {}) {
   return {
     author: block.note.author,
     title: block.note.title || "",
@@ -11,6 +13,12 @@ function toDatabaseRow(block) {
     content: block.note.content,
     created_at: block.note.securedAt || block.timestamp,
     deleted_at: null,
+    block_index: block.index,
+    block_timestamp: block.timestamp,
+    previous_hash: block.previousHash,
+    block_hash: block.hash,
+    anchor: block.anchor,
+    created_by_cardano_tx_hash: options.cardanoTxHash || "",
   };
 }
 
@@ -26,8 +34,14 @@ function toActivityDatabaseRow(entry) {
     confirmation_status: entry.confirmationStatus || "Failed",
     cardano_block_hash: entry.cardanoBlockHash || "",
     cardano_block_height: entry.cardanoBlockHeight ?? null,
+    cardano_block_slot: entry.cardanoBlockSlot ?? null,
+    cardano_block_epoch: entry.cardanoBlockEpoch ?? null,
+    cardano_block_time: entry.cardanoBlockTime || null,
     valid_until_slot: entry.validUntilSlot ?? null,
     confirmed_at: entry.confirmedAt || null,
+    proof_payload: entry.proofPayload || null,
+    note_save_status: entry.noteSaveStatus || "Saved",
+    note_save_error: entry.noteSaveError || "",
     network: entry.network || "",
     created_at: entry.createdAt || new Date().toISOString(),
   };
@@ -46,30 +60,46 @@ function toActivityEntry(row) {
     confirmationStatus: row.confirmation_status || "Failed",
     cardanoBlockHash: row.cardano_block_hash || "",
     cardanoBlockHeight: row.cardano_block_height ?? null,
+    cardanoBlockSlot: row.cardano_block_slot ?? null,
+    cardanoBlockEpoch: row.cardano_block_epoch ?? null,
+    cardanoBlockTime: row.cardano_block_time || null,
     validUntilSlot: row.valid_until_slot ?? null,
     confirmedAt: row.confirmed_at || null,
+    proofPayload: row.proof_payload || null,
+    noteSaveStatus: row.note_save_status || "Saved",
+    noteSaveError: row.note_save_error || "",
     network: row.network || "",
     createdAt: row.created_at,
   };
 }
 
 const ACTIVITY_COLUMNS =
-  "id,action,wallet_address,note_id,note_title,note_tag,proof_hash,cardano_tx_hash,confirmation_status,cardano_block_hash,cardano_block_height,valid_until_slot,confirmed_at,network,created_at";
+  "id,action,wallet_address,note_id,note_title,note_tag,proof_hash,cardano_tx_hash,confirmation_status,cardano_block_hash,cardano_block_height,cardano_block_slot,cardano_block_epoch,cardano_block_time,valid_until_slot,confirmed_at,proof_payload,note_save_status,note_save_error,network,created_at";
 
-function createTemporaryNoteBlocks(rows, { latestBlock, network }) {
-  if (!latestBlock) {
-    return [];
-  }
+const NOTE_COLUMNS =
+  "id,author,title,tag,content,created_at,deleted_at,block_index,block_timestamp,previous_hash,block_hash,anchor,created_by_cardano_tx_hash";
 
-  let previousHash = latestBlock.hash;
+function toStoredNoteBlocks(rows, { network = "" } = {}) {
+  let previousHash = LEGACY_GENESIS_HASH;
 
   return rows.map((row, index) => {
-    const timestamp = row.created_at;
+    const timestamp = row.block_timestamp || row.created_at;
+    const anchor = row.anchor || {
+      provider: "legacy",
+      network,
+      blockHash: LEGACY_GENESIS_HASH,
+      blockHeight: 0,
+      slot: 0,
+      epoch: 0,
+      txCount: 0,
+      blockTime: row.created_at,
+    };
     const block = {
       id: String(row.id),
-      index: index + 1,
+      index: row.block_index || index + 1,
       timestamp,
       deletedAt: row.deleted_at || null,
+      createdByCardanoTxHash: row.created_by_cardano_tx_hash || "",
       note: {
         author: row.author || "anonymous",
         title: row.title || "",
@@ -77,20 +107,11 @@ function createTemporaryNoteBlocks(rows, { latestBlock, network }) {
         content: row.content,
         securedAt: timestamp,
       },
-      previousHash,
-      anchor: {
-        provider: "blockfrost",
-        network,
-        blockHash: latestBlock.hash,
-        blockHeight: latestBlock.height,
-        slot: latestBlock.slot,
-        epoch: latestBlock.epoch,
-        txCount: latestBlock.txCount,
-        blockTime: latestBlock.time,
-      },
+      previousHash: row.previous_hash || previousHash,
+      anchor,
     };
 
-    block.hash = hashNoteBlock(block);
+    block.hash = row.block_hash || hashNoteBlock(block);
     previousHash = block.hash;
     return block;
   });
@@ -127,7 +148,7 @@ class SupabaseNotesRepository {
   async listNoteBlocks(options = {}) {
     const { data, error } = await this.client
       .from(this.tableName)
-      .select("id,author,title,tag,content,created_at,deleted_at")
+      .select(NOTE_COLUMNS)
       .is("deleted_at", null)
       .order("created_at", { ascending: true })
       .order("id", { ascending: true });
@@ -136,13 +157,13 @@ class SupabaseNotesRepository {
       throw createStoreError("Unable to load notes from Supabase", error);
     }
 
-    return createTemporaryNoteBlocks(data, options);
+    return toStoredNoteBlocks(data, options);
   }
 
   async listDeletedNoteBlocks(options = {}) {
     const { data, error } = await this.client
       .from(this.tableName)
-      .select("id,author,title,tag,content,created_at,deleted_at")
+      .select(NOTE_COLUMNS)
       .not("deleted_at", "is", null)
       .order("deleted_at", { ascending: false })
       .order("id", { ascending: true });
@@ -151,7 +172,7 @@ class SupabaseNotesRepository {
       throw createStoreError("Unable to load deleted notes from Supabase", error);
     }
 
-    return createTemporaryNoteBlocks(data, options);
+    return toStoredNoteBlocks(data, options);
   }
 
   async listActivity(options = {}) {
@@ -200,8 +221,17 @@ class SupabaseNotesRepository {
   async updateActivity(id, updates) {
     const databaseUpdates = {};
 
-    if (updates.confirmationStatus) {
+    if (updates.confirmationStatus !== undefined) {
       databaseUpdates.confirmation_status = updates.confirmationStatus;
+    }
+    if (updates.noteId !== undefined) {
+      databaseUpdates.note_id = updates.noteId || null;
+    }
+    if (updates.noteTitle !== undefined) {
+      databaseUpdates.note_title = updates.noteTitle;
+    }
+    if (updates.noteTag !== undefined) {
+      databaseUpdates.note_tag = updates.noteTag;
     }
     if (updates.cardanoBlockHash !== undefined) {
       databaseUpdates.cardano_block_hash = updates.cardanoBlockHash;
@@ -209,8 +239,26 @@ class SupabaseNotesRepository {
     if (updates.cardanoBlockHeight !== undefined) {
       databaseUpdates.cardano_block_height = updates.cardanoBlockHeight;
     }
+    if (updates.cardanoBlockSlot !== undefined) {
+      databaseUpdates.cardano_block_slot = updates.cardanoBlockSlot;
+    }
+    if (updates.cardanoBlockEpoch !== undefined) {
+      databaseUpdates.cardano_block_epoch = updates.cardanoBlockEpoch;
+    }
+    if (updates.cardanoBlockTime !== undefined) {
+      databaseUpdates.cardano_block_time = updates.cardanoBlockTime;
+    }
     if (updates.confirmedAt !== undefined) {
       databaseUpdates.confirmed_at = updates.confirmedAt;
+    }
+    if (updates.noteSaveStatus !== undefined) {
+      databaseUpdates.note_save_status = updates.noteSaveStatus;
+    }
+    if (updates.noteSaveError !== undefined) {
+      databaseUpdates.note_save_error = updates.noteSaveError;
+    }
+    if (updates.proofPayload !== undefined) {
+      databaseUpdates.proof_payload = updates.proofPayload;
     }
 
     const { data, error } = await this.client
@@ -227,10 +275,48 @@ class SupabaseNotesRepository {
     return toActivityEntry(data);
   }
 
-  async saveNoteBlock(block) {
+  async getActivityById(id) {
+    const { data, error } = await this.client
+      .from("note_activity")
+      .select(ACTIVITY_COLUMNS)
+      .eq("id", id)
+      .maybeSingle();
+
+    if (error) {
+      throw createStoreError("Unable to load note activity from Supabase", error);
+    }
+
+    return data ? toActivityEntry(data) : null;
+  }
+
+  async findActivityByTransactionHash(cardanoTxHash) {
+    const { data, error } = await this.client
+      .from("note_activity")
+      .select(ACTIVITY_COLUMNS)
+      .eq("cardano_tx_hash", cardanoTxHash)
+      .maybeSingle();
+
+    if (error) {
+      throw createStoreError("Unable to load note activity from Supabase", error);
+    }
+
+    return data ? toActivityEntry(data) : null;
+  }
+
+  async saveNoteBlock(block, options = {}) {
+    if (options.cardanoTxHash) {
+      const existing = await this.findNoteBlockByTransactionHash(
+        options.cardanoTxHash
+      );
+
+      if (existing) {
+        return existing;
+      }
+    }
+
     const { data, error } = await this.client
       .from(this.tableName)
-      .insert(toDatabaseRow(block))
+      .insert(toDatabaseRow(block, options))
       .select("id")
       .single();
 
@@ -255,14 +341,14 @@ class SupabaseNotesRepository {
       })
       .eq("id", id)
       .is("deleted_at", null)
-      .select("id,author,title,tag,content,created_at,deleted_at")
+      .select(NOTE_COLUMNS)
       .maybeSingle();
 
     if (error) {
       throw createStoreError("Unable to update note in Supabase", error);
     }
 
-    return data;
+    return data ? toStoredNoteBlocks([data], { network: "" })[0] : null;
   }
 
   async deleteNoteBlock(id) {
@@ -272,14 +358,14 @@ class SupabaseNotesRepository {
       .update({ deleted_at: deletedAt })
       .eq("id", id)
       .is("deleted_at", null)
-      .select("id,author,title,tag,content,deleted_at")
+      .select(NOTE_COLUMNS)
       .maybeSingle();
 
     if (error) {
       throw createStoreError("Unable to delete note from Supabase", error);
     }
 
-    return data;
+    return data ? toStoredNoteBlocks([data], { network: "" })[0] : null;
   }
 
   async restoreNoteBlock(id) {
@@ -288,14 +374,14 @@ class SupabaseNotesRepository {
       .update({ deleted_at: null })
       .eq("id", id)
       .not("deleted_at", "is", null)
-      .select("id,author,title,tag,content,created_at,deleted_at")
+      .select(NOTE_COLUMNS)
       .maybeSingle();
 
     if (error) {
       throw createStoreError("Unable to restore note from Supabase", error);
     }
 
-    return data;
+    return data ? toStoredNoteBlocks([data], { network: "" })[0] : null;
   }
 
   async hardDeleteNoteBlock(id) {
@@ -303,14 +389,64 @@ class SupabaseNotesRepository {
       .from(this.tableName)
       .delete()
       .eq("id", id)
-      .select("id,author,title,tag,content")
+      .select(NOTE_COLUMNS)
       .maybeSingle();
 
     if (error) {
       throw createStoreError("Unable to permanently delete note from Supabase", error);
     }
 
-    return data;
+    return data ? toStoredNoteBlocks([data], { network: "" })[0] : null;
+  }
+
+  async getNoteBlockById(id) {
+    const { data, error } = await this.client
+      .from(this.tableName)
+      .select(NOTE_COLUMNS)
+      .eq("id", id)
+      .maybeSingle();
+
+    if (error) {
+      throw createStoreError("Unable to load note from Supabase", error);
+    }
+
+    return data ? toStoredNoteBlocks([data], { network: "" })[0] : null;
+  }
+
+  async findNoteBlockByTransactionHash(cardanoTxHash) {
+    const { data, error } = await this.client
+      .from(this.tableName)
+      .select(NOTE_COLUMNS)
+      .eq("created_by_cardano_tx_hash", cardanoTxHash)
+      .maybeSingle();
+
+    if (error) {
+      throw createStoreError("Unable to load note from Supabase", error);
+    }
+
+    return data ? toStoredNoteBlocks([data], { network: "" })[0] : null;
+  }
+
+  async replaceNoteBlocks(blocks) {
+    if (blocks.length === 0) {
+      return;
+    }
+
+    const rows = blocks.map((block) => ({
+      id: block.id,
+      block_index: block.index,
+      block_timestamp: block.timestamp,
+      previous_hash: block.previousHash,
+      block_hash: block.hash,
+      anchor: block.anchor,
+    }));
+    const { error } = await this.client
+      .from(this.tableName)
+      .upsert(rows, { onConflict: "id" });
+
+    if (error) {
+      throw createStoreError("Unable to persist note proof chain", error);
+    }
   }
 }
 

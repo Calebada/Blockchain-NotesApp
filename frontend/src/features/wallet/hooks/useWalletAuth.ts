@@ -97,12 +97,12 @@ export function useWalletAuth() {
         changeAddress,
       });
       const witnessSet = await api.signTx(prepared.unsignedTx, true);
-      const submitted = await submitNoteTransaction(prepared.unsignedTx, witnessSet);
+      const submitted = await submitNoteTransaction(prepared, witnessSet);
 
       return {
+        ...submitted,
         proofHash: prepared.proofHash,
-        cardanoTxHash: submitted.cardanoTxHash,
-        confirmationStatus: "Pending",
+        proofPayload: prepared.proofPayload,
         validUntilSlot: prepared.validUntilSlot,
       };
     },

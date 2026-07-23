@@ -33,10 +33,32 @@ function getChainDetailsFromRequest(req) {
         : "Pending",
     validUntilSlot:
       Number.isSafeInteger(req.body?.validUntilSlot) ? req.body.validUntilSlot : null,
+    proofPayload:
+      req.body?.proofPayload && typeof req.body.proofPayload === "object"
+        ? req.body.proofPayload
+        : null,
   };
 }
 
 function createNotesController(notesLedger) {
+  async function runTrackedMutation(req, mutation) {
+    const chainDetails = getChainDetailsFromRequest(req);
+
+    try {
+      return await mutation({
+        walletAddress: getWalletAddressFromRequest(req),
+        ...chainDetails,
+      });
+    } catch (error) {
+      if (typeof notesLedger.markNoteSaveFailed === "function") {
+        await notesLedger
+          .markNoteSaveFailed(chainDetails.cardanoTxHash, error)
+          .catch(() => {});
+      }
+      throw error;
+    }
+  }
+
   return {
     getHealth(req, res) {
       res.json({
@@ -51,10 +73,9 @@ function createNotesController(notesLedger) {
     },
 
     async createNote(req, res) {
-      const { block, valid } = await notesLedger.addNote(validateNotePayload(req.body), {
-        walletAddress: getWalletAddressFromRequest(req),
-        ...getChainDetailsFromRequest(req),
-      });
+      const { block, valid } = await runTrackedMutation(req, (options) =>
+        notesLedger.addNote(validateNotePayload(req.body), options)
+      );
 
       res.status(201).json({
         message: "Note created after its signed Preprod transaction was submitted.",
@@ -80,14 +101,31 @@ function createNotesController(notesLedger) {
       res.json(await notesLedger.getWalletTransactions(getWalletAddressFromRequest(req)));
     },
 
+    async verifyProof(req, res) {
+      res.json(
+        await notesLedger.verifyActivityProof(
+          req.params.id,
+          getWalletAddressFromRequest(req)
+        )
+      );
+    },
+
+    async retrySavingNote(req, res) {
+      res.json(
+        await notesLedger.retrySavingNote(
+          req.params.id,
+          getWalletAddressFromRequest(req)
+        )
+      );
+    },
+
     async updateNote(req, res) {
-      const { block, valid } = await notesLedger.updateNote(
-        req.params.id,
-        validateNotePayload(req.body),
-        {
-          walletAddress: getWalletAddressFromRequest(req),
-          ...getChainDetailsFromRequest(req),
-        }
+      const { block, valid } = await runTrackedMutation(req, (options) =>
+        notesLedger.updateNote(
+          req.params.id,
+          validateNotePayload(req.body),
+          options
+        )
       );
 
       res.json({
@@ -99,10 +137,9 @@ function createNotesController(notesLedger) {
     },
 
     async restoreNote(req, res) {
-      const { block, valid } = await notesLedger.restoreNote(req.params.id, {
-        walletAddress: getWalletAddressFromRequest(req),
-        ...getChainDetailsFromRequest(req),
-      });
+      const { block, valid } = await runTrackedMutation(req, (options) =>
+        notesLedger.restoreNote(req.params.id, options)
+      );
 
       res.json({
         message: "Note restored and the local proof chain was recalculated.",
@@ -113,10 +150,9 @@ function createNotesController(notesLedger) {
     },
 
     async permanentlyDeleteNote(req, res) {
-      const { valid } = await notesLedger.hardDeleteNote(req.params.id, {
-        walletAddress: getWalletAddressFromRequest(req),
-        ...getChainDetailsFromRequest(req),
-      });
+      const { valid } = await runTrackedMutation(req, (options) =>
+        notesLedger.hardDeleteNote(req.params.id, options)
+      );
 
       res.json({
         message: "Note permanently deleted.",
@@ -126,10 +162,9 @@ function createNotesController(notesLedger) {
     },
 
     async deleteNote(req, res) {
-      const { valid } = await notesLedger.deleteNote(req.params.id, {
-        walletAddress: getWalletAddressFromRequest(req),
-        ...getChainDetailsFromRequest(req),
-      });
+      const { valid } = await runTrackedMutation(req, (options) =>
+        notesLedger.deleteNote(req.params.id, options)
+      );
 
       res.json({
         message: "Note moved to trash and the local proof chain was recalculated.",

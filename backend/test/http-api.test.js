@@ -8,6 +8,9 @@ function createNotesLedgerStub() {
     requestedActivityOptions: undefined,
     mutationWalletAddresses: [],
     mutationOptions: [],
+    submittedProof: null,
+    verifiedProof: null,
+    retriedProof: null,
     provider: {
       name: "blockfrost",
       network: "preprod",
@@ -99,6 +102,28 @@ function createNotesLedgerStub() {
         totalAda: "2.500000",
         transactionCount: 1,
         transactions: [{ txHash: "abc", outputIndex: 0, ada: "2.500000" }],
+      };
+    },
+    recordSubmittedProof: async (submission) => {
+      ledger.submittedProof = submission;
+      return { id: "proof-1", ...submission };
+    },
+    markNoteSaveFailed: async () => null,
+    verifyActivityProof: async (id, walletAddress) => {
+      ledger.verifiedProof = { id, walletAddress };
+      return {
+        verified: true,
+        transactionExists: true,
+        metadataMatches: true,
+        actionMatches: true,
+        message: "Proof verified.",
+      };
+    },
+    retrySavingNote: async (id, walletAddress) => {
+      ledger.retriedProof = { id, walletAddress };
+      return {
+        retried: true,
+        message: "Saved without another transaction.",
       };
     },
   };
@@ -231,6 +256,37 @@ test("passes transaction history pagination through the HTTP controller", async 
   }, notesLedger);
 });
 
+test("verifies and retries a persisted proof through dedicated activity endpoints", async () => {
+  const notesLedger = createNotesLedgerStub();
+  const walletAddress = "addr_test_connected_wallet";
+
+  await withServer(async (baseUrl) => {
+    const headers = { "content-type": "application/json" };
+    const body = JSON.stringify({ walletAddress });
+    const verificationResponse = await fetch(
+      `${baseUrl}/api/activity/proof-1/verify`,
+      { method: "POST", headers, body }
+    );
+    const retryResponse = await fetch(
+      `${baseUrl}/api/activity/proof-1/retry-note-save`,
+      { method: "POST", headers, body }
+    );
+
+    assert.equal(verificationResponse.status, 200);
+    assert.equal((await verificationResponse.json()).verified, true);
+    assert.equal(retryResponse.status, 200);
+    assert.equal((await retryResponse.json()).retried, true);
+    assert.deepEqual(notesLedger.verifiedProof, {
+      id: "proof-1",
+      walletAddress,
+    });
+    assert.deepEqual(notesLedger.retriedProof, {
+      id: "proof-1",
+      walletAddress,
+    });
+  }, notesLedger);
+});
+
 test("passes the connected wallet address through note mutations", async () => {
   const notesLedger = createNotesLedgerStub();
 
@@ -301,6 +357,7 @@ test("passes the connected wallet address through note mutations", async () => {
 
 test("prepares and submits wallet-signed Preprod transactions", async () => {
   const calls = [];
+  const notesLedger = createNotesLedgerStub();
   const noteTransactionService = {
     prepare: async (payload) => {
       calls.push(["prepare", payload]);
@@ -337,12 +394,47 @@ test("prepares and submits wallet-signed Preprod transactions", async () => {
     assert.equal(prepareResponse.status, 200);
     assert.equal((await prepareResponse.json()).network, "preprod");
     assert.equal(submitResponse.status, 202);
-    assert.equal((await submitResponse.json()).cardanoTxHash, "b".repeat(64));
+    const submittedBody = await submitResponse.json();
+    assert.equal(submittedBody.cardanoTxHash, "b".repeat(64));
+    assert.equal(submittedBody.proofRecordId, "proof-1");
+    assert.equal(submittedBody.proofPersistenceStatus, "Saved");
+    assert.equal(notesLedger.submittedProof.cardanoTxHash, "b".repeat(64));
     assert.deepEqual(calls, [
       ["prepare", { action: "CREATE_NOTE", utxos: ["abcd"] }],
       ["submit", { unsignedTx: "00", witnessSet: "a0" }],
     ]);
-  }, createNotesLedgerStub(), noteTransactionService);
+  }, notesLedger, noteTransactionService);
+});
+
+test("returns the transaction hash when submitted-proof persistence fails", async () => {
+  const notesLedger = createNotesLedgerStub();
+  notesLedger.recordSubmittedProof = async () => {
+    throw new Error("Proof database unavailable.");
+  };
+  const cardanoTxHash = "f".repeat(64);
+  const noteTransactionService = {
+    prepare: async () => ({}),
+    submit: async () => ({
+      cardanoTxHash,
+      proofHash: "e".repeat(64),
+      confirmationStatus: "Pending",
+      network: "preprod",
+    }),
+  };
+
+  await withServer(async (baseUrl) => {
+    const response = await fetch(`${baseUrl}/api/transactions/submit`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ unsignedTx: "00", witnessSet: "a0" }),
+    });
+    const body = await response.json();
+
+    assert.equal(response.status, 202);
+    assert.equal(body.cardanoTxHash, cardanoTxHash);
+    assert.equal(body.proofPersistenceStatus, "Failed");
+    assert.match(body.warning, /transaction succeeded/i);
+  }, notesLedger, noteTransactionService);
 });
 
 test("returns a centralized 404 response for unknown routes", async () => {

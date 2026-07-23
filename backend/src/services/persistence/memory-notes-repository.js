@@ -1,35 +1,3 @@
-const { hashNoteBlock } = require("../../domain/note-block");
-
-function createTemporaryNoteBlocks(blocks, { latestBlock, network }) {
-  if (!latestBlock) {
-    return [...blocks];
-  }
-
-  let previousHash = latestBlock.hash;
-
-  return blocks.map((storedBlock, index) => {
-    const block = {
-      ...storedBlock,
-      index: index + 1,
-      previousHash,
-      anchor: {
-        provider: "blockfrost",
-        network,
-        blockHash: latestBlock.hash,
-        blockHeight: latestBlock.height,
-        slot: latestBlock.slot,
-        epoch: latestBlock.epoch,
-        txCount: latestBlock.txCount,
-        blockTime: latestBlock.time,
-      },
-    };
-
-    block.hash = hashNoteBlock(block);
-    previousHash = block.hash;
-    return block;
-  });
-}
-
 class MemoryNotesRepository {
   constructor() {
     this.blocks = [];
@@ -45,12 +13,12 @@ class MemoryNotesRepository {
     };
   }
 
-  async listNoteBlocks(options = {}) {
-    return createTemporaryNoteBlocks(this.blocks.filter((block) => !block.deletedAt), options);
+  async listNoteBlocks() {
+    return this.blocks.filter((block) => !block.deletedAt).map((block) => ({ ...block }));
   }
 
-  async listDeletedNoteBlocks(options = {}) {
-    return createTemporaryNoteBlocks(this.blocks.filter((block) => block.deletedAt), options);
+  async listDeletedNoteBlocks() {
+    return this.blocks.filter((block) => block.deletedAt).map((block) => ({ ...block }));
   }
 
   async listActivity(options = {}) {
@@ -95,8 +63,14 @@ class MemoryNotesRepository {
       confirmationStatus: entry.confirmationStatus || "Failed",
       cardanoBlockHash: entry.cardanoBlockHash || "",
       cardanoBlockHeight: entry.cardanoBlockHeight ?? null,
+      cardanoBlockSlot: entry.cardanoBlockSlot ?? null,
+      cardanoBlockEpoch: entry.cardanoBlockEpoch ?? null,
+      cardanoBlockTime: entry.cardanoBlockTime || null,
       validUntilSlot: entry.validUntilSlot ?? null,
       confirmedAt: entry.confirmedAt || null,
+      proofPayload: entry.proofPayload || null,
+      noteSaveStatus: entry.noteSaveStatus || "Saved",
+      noteSaveError: entry.noteSaveError || "",
       network: entry.network || "",
       createdAt: entry.createdAt || new Date().toISOString(),
     };
@@ -120,16 +94,71 @@ class MemoryNotesRepository {
     return this.activity[index];
   }
 
-  async saveNoteBlock(block) {
+  async getActivityById(id) {
+    return (
+      this.activity.find((entry) => String(entry.id) === String(id)) || null
+    );
+  }
+
+  async findActivityByTransactionHash(cardanoTxHash) {
+    return (
+      this.activity.find((entry) => entry.cardanoTxHash === cardanoTxHash) || null
+    );
+  }
+
+  async saveNoteBlock(block, options = {}) {
+    if (options.cardanoTxHash) {
+      const existingBlock = this.blocks.find(
+        (candidate) =>
+          candidate.createdByCardanoTxHash === options.cardanoTxHash
+      );
+
+      if (existingBlock) {
+        return existingBlock;
+      }
+    }
+
     const blockToSave = {
       ...block,
       id: String(this.nextId),
       deletedAt: null,
+      createdByCardanoTxHash: options.cardanoTxHash || "",
     };
 
     this.nextId += 1;
     this.blocks.push(blockToSave);
     return blockToSave;
+  }
+
+  async getNoteBlockById(id) {
+    return (
+      this.blocks.find((block) => String(block.id) === String(id)) || null
+    );
+  }
+
+  async findNoteBlockByTransactionHash(cardanoTxHash) {
+    return (
+      this.blocks.find(
+        (block) => block.createdByCardanoTxHash === cardanoTxHash
+      ) || null
+    );
+  }
+
+  async replaceNoteBlocks(blocks) {
+    const replacements = new Map(
+      blocks.map((block) => [String(block.id), block])
+    );
+
+    this.blocks = this.blocks.map((block) => {
+      const replacement = replacements.get(String(block.id));
+      return replacement
+        ? {
+            ...block,
+            ...replacement,
+            createdByCardanoTxHash: block.createdByCardanoTxHash || "",
+          }
+        : block;
+    });
   }
 
   async updateNoteBlock(id, updates) {

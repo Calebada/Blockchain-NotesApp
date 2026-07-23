@@ -5,7 +5,13 @@ create table if not exists public.notes (
   tag text not null default 'General',
   content text not null,
   created_at timestamptz not null default now(),
-  deleted_at timestamptz
+  deleted_at timestamptz,
+  block_index bigint,
+  block_timestamp timestamptz,
+  previous_hash text not null default '',
+  block_hash text not null default '',
+  anchor jsonb,
+  created_by_cardano_tx_hash text not null default ''
 );
 
 alter table public.notes
@@ -16,6 +22,24 @@ alter table public.notes
 
 alter table public.notes
   add column if not exists deleted_at timestamptz;
+
+alter table public.notes
+  add column if not exists block_index bigint;
+
+alter table public.notes
+  add column if not exists block_timestamp timestamptz;
+
+alter table public.notes
+  add column if not exists previous_hash text not null default '';
+
+alter table public.notes
+  add column if not exists block_hash text not null default '';
+
+alter table public.notes
+  add column if not exists anchor jsonb;
+
+alter table public.notes
+  add column if not exists created_by_cardano_tx_hash text not null default '';
 
 create index if not exists notes_created_at_idx
   on public.notes (created_at);
@@ -43,8 +67,14 @@ create table if not exists public.note_activity (
   confirmation_status text not null default 'Failed',
   cardano_block_hash text not null default '',
   cardano_block_height bigint,
+  cardano_block_slot bigint,
+  cardano_block_epoch bigint,
+  cardano_block_time timestamptz,
   valid_until_slot bigint,
   confirmed_at timestamptz,
+  proof_payload jsonb,
+  note_save_status text not null default 'Saved',
+  note_save_error text not null default '',
   network text not null default '',
   created_at timestamptz not null default now()
 );
@@ -65,10 +95,28 @@ alter table public.note_activity
   add column if not exists cardano_block_height bigint;
 
 alter table public.note_activity
+  add column if not exists cardano_block_slot bigint;
+
+alter table public.note_activity
+  add column if not exists cardano_block_epoch bigint;
+
+alter table public.note_activity
+  add column if not exists cardano_block_time timestamptz;
+
+alter table public.note_activity
   add column if not exists valid_until_slot bigint;
 
 alter table public.note_activity
   add column if not exists confirmed_at timestamptz;
+
+alter table public.note_activity
+  add column if not exists proof_payload jsonb;
+
+alter table public.note_activity
+  add column if not exists note_save_status text not null default 'Saved';
+
+alter table public.note_activity
+  add column if not exists note_save_error text not null default '';
 
 do $$
 begin
@@ -98,6 +146,10 @@ create index if not exists note_activity_proof_hash_idx
 create index if not exists note_activity_cardano_tx_hash_idx
   on public.note_activity (cardano_tx_hash)
   where cardano_tx_hash <> '';
+
+create unique index if not exists notes_created_by_cardano_tx_hash_uidx
+  on public.notes (created_by_cardano_tx_hash)
+  where created_by_cardano_tx_hash <> '';
 
 create index if not exists note_activity_cardano_block_hash_idx
   on public.note_activity (cardano_block_hash)

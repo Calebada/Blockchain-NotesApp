@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
-import { ChevronLeft, ChevronRight, ExternalLink, FilePenLine, RotateCcw, Trash2, Wallet } from 'lucide-react';
-import type { NoteActivity, NoteActivityAction } from '../../../types/blockchain';
+import { CheckCircle2, ChevronLeft, ChevronRight, ExternalLink, FilePenLine, Loader2, RotateCcw, ShieldCheck, Trash2, Wallet, XCircle } from 'lucide-react';
+import type { NoteActivity, NoteActivityAction, ProofVerificationResult } from '../../../types/blockchain';
 import type { WalletAuthState } from '../../wallet/hooks/useWalletAuth';
 import WalletConnection, { formatWalletAddress } from '../../wallet/components/WalletConnection';
 
@@ -17,6 +17,12 @@ interface TransactionHistoryPageProps {
   error: string;
   walletAuth: WalletAuthState;
   onPageChange: (page: number) => void;
+  onRetryNoteSave: (activityId: string) => Promise<void>;
+  onVerifyProof: (activityId: string) => Promise<void>;
+  proofActionErrors: Record<string, string>;
+  proofVerifications: Record<string, ProofVerificationResult>;
+  retryingActivityIds: ReadonlySet<string>;
+  verifyingProofIds: ReadonlySet<string>;
 }
 
 const ACTION_LABELS: Record<NoteActivityAction, string> = {
@@ -82,6 +88,12 @@ export default function TransactionHistoryPage({
   error,
   walletAuth,
   onPageChange,
+  onRetryNoteSave,
+  onVerifyProof,
+  proofActionErrors,
+  proofVerifications,
+  retryingActivityIds,
+  verifyingProofIds,
 }: TransactionHistoryPageProps) {
   const connectedWallet = walletAuth.connectedWallet;
   const firstItem = pagination.total === 0 ? 0 : (pagination.page - 1) * pagination.pageSize + 1;
@@ -160,6 +172,10 @@ export default function TransactionHistoryPage({
           {activity.map((entry) => {
             const statusColors = getStatusColors(entry.confirmationStatus);
             const explorerUrl = getExplorerUrl(entry);
+            const verification = proofVerifications[entry.id];
+            const proofError = proofActionErrors[entry.id];
+            const isVerifying = verifyingProofIds.has(entry.id);
+            const isRetrying = retryingActivityIds.has(entry.id);
 
             return (
             <div
@@ -211,9 +227,29 @@ export default function TransactionHistoryPage({
                     {formatHash(entry.cardanoBlockHash)}
                   </div>
                 )}
+                {entry.cardanoBlockSlot !== null && (
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                    Slot {entry.cardanoBlockSlot}
+                    {entry.cardanoBlockEpoch !== null ? ` · epoch ${entry.cardanoBlockEpoch}` : ''}
+                  </div>
+                )}
+                {entry.noteSaveStatus === 'Failed' && (
+                  <div style={{ marginTop: '5px', color: '#9A3412', fontSize: '12px', fontWeight: 700 }}>
+                    Blockchain transaction succeeded; note save failed.
+                    {entry.noteSaveError ? ` ${entry.noteSaveError}` : ''}
+                  </div>
+                )}
+                {verification && (
+                  <ProofVerificationSummary verification={verification} />
+                )}
+                {proofError && (
+                  <div role="alert" style={{ marginTop: '5px', color: '#991B1B', fontSize: '12px' }}>
+                    {proofError}
+                  </div>
+                )}
               </div>
 
-              <div style={{ textAlign: 'right', minWidth: '130px' }}>
+              <div style={{ textAlign: 'right', minWidth: '150px' }}>
                 <div
                   style={{
                     display: 'inline-flex',
@@ -252,6 +288,28 @@ export default function TransactionHistoryPage({
                     View on explorer <ExternalLink size={12} />
                   </a>
                 )}
+                <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+                  <button
+                    type="button"
+                    onClick={() => void onVerifyProof(entry.id)}
+                    disabled={isVerifying || !entry.cardanoTxHash || !entry.proofHash}
+                    style={actionButtonStyle(isVerifying || !entry.cardanoTxHash || !entry.proofHash)}
+                  >
+                    {isVerifying ? <Loader2 size={13} className="animate-spin" /> : <ShieldCheck size={13} />}
+                    {isVerifying ? 'Verifying...' : 'Verify proof'}
+                  </button>
+                  {entry.noteSaveStatus === 'Failed' && (
+                    <button
+                      type="button"
+                      onClick={() => void onRetryNoteSave(entry.id)}
+                      disabled={isRetrying}
+                      style={actionButtonStyle(isRetrying)}
+                    >
+                      {isRetrying ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />}
+                      {isRetrying ? 'Retrying...' : 'Retry saving note'}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
             );
@@ -298,6 +356,55 @@ export default function TransactionHistoryPage({
       )}
     </div>
   );
+}
+
+function ProofVerificationSummary({
+  verification,
+}: {
+  verification: ProofVerificationResult;
+}) {
+  const checks = [
+    ['Transaction exists', verification.transactionExists],
+    ['Metadata proof hash matches', verification.metadataMatches],
+    ['Recorded action matches', verification.actionMatches],
+  ] as const;
+
+  return (
+    <div
+      style={{
+        marginTop: '8px',
+        padding: '9px 10px',
+        borderRadius: '7px',
+        backgroundColor: verification.verified ? '#F0FDF4' : '#FEF2F2',
+        color: verification.verified ? '#166534' : '#991B1B',
+        fontSize: '11px',
+      }}
+    >
+      <div style={{ fontWeight: 700, marginBottom: '4px' }}>{verification.message}</div>
+      {checks.map(([label, passed]) => (
+        <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '2px' }}>
+          {passed ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
+          {label}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function actionButtonStyle(disabled: boolean): CSSProperties {
+  return {
+    border: '1px solid var(--border-light)',
+    borderRadius: '6px',
+    padding: '6px 8px',
+    backgroundColor: disabled ? '#F3F0EC' : '#FFFFFF',
+    color: disabled ? '#B8AEA4' : '#7C3F1D',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '5px',
+    fontSize: '11px',
+    fontWeight: 700,
+    cursor: disabled ? 'not-allowed' : 'pointer',
+  };
 }
 
 function paginationButtonStyle(disabled: boolean): CSSProperties {

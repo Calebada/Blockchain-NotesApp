@@ -110,6 +110,26 @@ class BlockfrostClient {
       throw this.normalizeSdkError(error);
     }
   }
+
+  async getTransactionMetadata(transactionHash) {
+    this.assertConfigured();
+
+    try {
+      return await this.api.txsMetadata(transactionHash);
+    } catch (error) {
+      throw this.normalizeSdkError(error);
+    }
+  }
+
+  async getBlock(blockHash) {
+    this.assertConfigured();
+
+    try {
+      return await this.api.blocks(blockHash);
+    } catch (error) {
+      throw this.normalizeSdkError(error);
+    }
+  }
 }
 
 module.exports = {

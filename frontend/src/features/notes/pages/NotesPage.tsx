@@ -80,6 +80,50 @@ export default function NotesPage() {
       />
 
       <main style={{ flex: 1 }}>
+        {notes.pendingNoteSave && (
+          <div
+            role="alert"
+            style={{
+              marginLeft: "260px",
+              padding: "16px 56px",
+              backgroundColor: "#FFF7ED",
+              borderBottom: "1px solid #FDBA74",
+              color: "#9A3412",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "20px",
+            }}
+          >
+            <div>
+              <strong>Blockchain transaction succeeded; note save failed.</strong>
+              <div style={{ marginTop: "4px", fontSize: "12px", fontFamily: "monospace" }}>
+                Transaction {notes.pendingNoteSave.proof.cardanoTxHash}
+              </div>
+              <div style={{ marginTop: "4px", fontSize: "13px" }}>
+                {notes.pendingNoteSave.error}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => void notes.retryPendingNoteSave()}
+              disabled={notes.isSubmitting}
+              style={{
+                flex: "0 0 auto",
+                border: "none",
+                borderRadius: "7px",
+                padding: "10px 14px",
+                backgroundColor: "#9A3412",
+                color: "#FFFFFF",
+                fontWeight: 700,
+                cursor: notes.isSubmitting ? "wait" : "pointer",
+              }}
+            >
+              {notes.isSubmitting ? "Retrying..." : "Retry saving note"}
+            </button>
+          </div>
+        )}
+
         {globalError && (
           <div
             role="alert"
@@ -112,6 +156,12 @@ export default function NotesPage() {
             error={notes.activityError}
             walletAuth={walletAuth}
             onPageChange={notes.setActivityPage}
+            onRetryNoteSave={notes.retryActivitySave}
+            onVerifyProof={notes.verifyProof}
+            proofActionErrors={notes.proofActionErrors}
+            proofVerifications={notes.proofVerifications}
+            retryingActivityIds={notes.retryingActivityIds}
+            verifyingProofIds={notes.verifyingProofIds}
           />
         ) : (
           <NotesList

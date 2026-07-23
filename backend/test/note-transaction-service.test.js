@@ -97,10 +97,14 @@ test("assembles wallet witnesses and submits the signed transaction", async () =
   const result = await service.submit({
     unsignedTx: prepared.unsignedTx,
     witnessSet: Cardano.TransactionWitnessSet.new().to_hex(),
+    proofHash: prepared.proofHash,
+    proofPayload: prepared.proofPayload,
+    validUntilSlot: prepared.validUntilSlot,
   });
 
   assert.equal(result.cardanoTxHash, "d".repeat(64));
   assert.equal(result.confirmationStatus, "Pending");
+  assert.deepEqual(result.proofPayload, prepared.proofPayload);
   assert.ok(Cardano.Transaction.from_hex(submittedTransaction).auxiliary_data());
 });
 

@@ -1,43 +1,11 @@
-const crypto = require("crypto");
 const Cardano = require("@emurgo/cardano-serialization-lib-nodejs");
 const { AppError } = require("../../common/app-error");
-
-const NOTE_METADATA_LABEL = "1968";
-const NOTE_TRANSACTION_VERSION = 1;
-const ALLOWED_ACTIONS = new Set([
-  "CREATE_NOTE",
-  "UPDATE_NOTE",
-  "DELETE_NOTE",
-  "RESTORE_NOTE",
-  "PERMANENT_DELETE_NOTE",
-]);
-
-function normalizeIntent(intent = {}) {
-  if (!ALLOWED_ACTIONS.has(intent.action)) {
-    throw new AppError("A valid note action is required.", 400);
-  }
-
-  if (typeof intent.walletAddress !== "string" || !intent.walletAddress.trim()) {
-    throw new AppError("A connected Cardano wallet address is required.", 400);
-  }
-
-  return {
-    version: NOTE_TRANSACTION_VERSION,
-    action: intent.action,
-    walletAddress: intent.walletAddress.trim(),
-    noteId: intent.noteId ? String(intent.noteId) : "",
-    title: typeof intent.title === "string" ? intent.title : "",
-    tag: typeof intent.tag === "string" ? intent.tag : "General",
-    content: typeof intent.content === "string" ? intent.content : "",
-  };
-}
-
-function createProofHash(intent) {
-  return crypto
-    .createHash("sha256")
-    .update(JSON.stringify(normalizeIntent(intent)))
-    .digest("hex");
-}
+const {
+  NOTE_METADATA_LABEL,
+  NOTE_TRANSACTION_VERSION,
+  createProofHash,
+  normalizeProofIntent,
+} = require("../../domain/note-proof");
 
 function parseAddress(address) {
   try {
@@ -150,7 +118,7 @@ class NoteTransactionService {
 
   async prepare(payload = {}) {
     this.assertPreprod();
-    const intent = normalizeIntent(payload);
+    const intent = normalizeProofIntent(payload);
     const proofHash = createProofHash(intent);
     const [parameters, latestBlock] = await Promise.all([
       this.client.getLatestProtocolParameters(),
@@ -168,15 +136,38 @@ class NoteTransactionService {
     return {
       ...transaction,
       proofHash,
+      proofPayload: intent,
       network: "preprod",
     };
   }
 
-  async submit({ unsignedTx, witnessSet }) {
+  async submit({ unsignedTx, witnessSet, proofPayload, proofHash, validUntilSlot }) {
     this.assertPreprod();
 
     try {
+      const normalizedProofPayload = normalizeProofIntent(proofPayload);
+      const expectedProofHash = createProofHash(normalizedProofPayload);
+
+      if (expectedProofHash !== proofHash) {
+        throw new AppError(
+          "The submitted proof payload does not match the prepared proof hash.",
+          409
+        );
+      }
+
       const unsignedTransaction = Cardano.Transaction.from_hex(unsignedTx);
+      const metadata = readNoteMetadata(unsignedTransaction);
+
+      if (
+        metadata.proofHash !== proofHash ||
+        metadata.action !== normalizedProofPayload.action
+      ) {
+        throw new AppError(
+          "The signed transaction metadata does not match the prepared note proof.",
+          409
+        );
+      }
+
       const walletWitnesses = Cardano.TransactionWitnessSet.from_hex(witnessSet);
       const signedTransaction = Cardano.Transaction.new(
         unsignedTransaction.body(),
@@ -187,7 +178,10 @@ class NoteTransactionService {
 
       return {
         cardanoTxHash,
+        proofHash,
+        proofPayload: normalizedProofPayload,
         confirmationStatus: "Pending",
+        validUntilSlot: Number.isSafeInteger(validUntilSlot) ? validUntilSlot : null,
         network: "preprod",
       };
     } catch (error) {
@@ -203,7 +197,33 @@ class NoteTransactionService {
   }
 }
 
+function readNoteMetadata(transaction) {
+  const auxiliaryData = transaction.auxiliary_data();
+  const metadata = auxiliaryData?.metadata()?.get(
+    Cardano.BigNum.from_str(NOTE_METADATA_LABEL)
+  );
+
+  if (!metadata) {
+    throw new AppError(
+      `The signed transaction is missing Notetify metadata label ${NOTE_METADATA_LABEL}.`,
+      409
+    );
+  }
+
+  try {
+    return JSON.parse(
+      Cardano.decode_metadatum_to_json_str(
+        metadata,
+        Cardano.MetadataJsonSchema.NoConversions
+      )
+    );
+  } catch (_error) {
+    throw new AppError("The signed transaction contains invalid Notetify metadata.", 409);
+  }
+}
+
 module.exports = {
   NoteTransactionService,
   createProofHash,
+  readNoteMetadata,
 };

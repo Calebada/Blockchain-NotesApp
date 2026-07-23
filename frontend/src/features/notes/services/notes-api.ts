@@ -6,6 +6,7 @@ import type {
   NoteActivityResponse,
   NoteTransactionIntent,
   PreparedNoteTransaction,
+  ProofVerificationResult,
 } from "../../../types/blockchain";
 import type { CreateNoteRequest, UpdateNoteRequest } from "../types/note";
 
@@ -49,10 +50,35 @@ export async function prepareNoteTransaction(
   return response.data;
 }
 
-export async function submitNoteTransaction(unsignedTx: string, witnessSet: string) {
-  const response = await axios.post<Omit<BlockchainProof, "proofHash" | "validUntilSlot">>(
+export async function submitNoteTransaction(
+  prepared: PreparedNoteTransaction,
+  witnessSet: string
+) {
+  const response = await axios.post<BlockchainProof>(
     `${API_BASE_URL}/transactions/submit`,
-    { unsignedTx, witnessSet }
+    { ...prepared, witnessSet }
+  );
+  return response.data;
+}
+
+export async function verifyActivityProof(
+  activityId: string,
+  walletAddress: string
+) {
+  const response = await axios.post<ProofVerificationResult>(
+    `${API_BASE_URL}/activity/${activityId}/verify`,
+    { walletAddress }
+  );
+  return response.data;
+}
+
+export async function retryActivityNoteSave(
+  activityId: string,
+  walletAddress: string
+) {
+  const response = await axios.post(
+    `${API_BASE_URL}/activity/${activityId}/retry-note-save`,
+    { walletAddress }
   );
   return response.data;
 }
