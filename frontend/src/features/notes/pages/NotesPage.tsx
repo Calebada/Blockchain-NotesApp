@@ -4,12 +4,23 @@ import NoteForm from "../components/NoteForm";
 import NotesList from "../components/NotesList";
 import Sidebar from "../components/Sidebar";
 import TransactionHistoryPage from "../../transactions/pages/TransactionHistoryPage";
+import PinnedNotesPage from "./PinnedNotesPage";
+import TrashNotesPage from "./TrashNotesPage";
 import { useNotes } from "../hooks/useNotes";
 import { useWalletAuth } from "../../wallet/hooks/useWalletAuth";
 
-export default function NotesPage() {
+interface NotesPageProps {
+  activeRouteTab: string;
+  onRouteTabChange: (tab: string) => void;
+}
+
+export default function NotesPage({
+  activeRouteTab,
+  onRouteTabChange,
+}: NotesPageProps) {
   const walletAuth = useWalletAuth();
   const notes = useNotes({
+    activeTab: activeRouteTab,
     walletAddress: walletAuth.connectedWallet?.address,
     publishNoteProof: walletAuth.publishNoteProof,
   });
@@ -74,7 +85,7 @@ export default function NotesPage() {
         activeTab={notes.activeTab}
         counts={notes.counts}
         onNewNote={notes.openNewNote}
-        onTabSelect={notes.setActiveTab}
+        onTabSelect={onRouteTabChange}
         walletAuth={walletAuth}
         transactionCount={notes.activityPagination.total}
       />
@@ -113,11 +124,29 @@ export default function NotesPage() {
             walletAuth={walletAuth}
             onPageChange={notes.setActivityPage}
           />
+        ) : notes.activeTab === "pinned" ? (
+          <PinnedNotesPage
+            notes={notes.filteredNotes}
+            onSearch={notes.setSearchQuery}
+            onNewNote={notes.openNewNote}
+            onEditNote={notes.openEditNote}
+            onDeleteNote={notes.moveNoteToTrash}
+            onTogglePin={notes.togglePinnedNote}
+          />
+        ) : notes.activeTab === "trash" ? (
+          <TrashNotesPage
+            notes={notes.filteredNotes}
+            onSearch={notes.setSearchQuery}
+            onNewNote={notes.openNewNote}
+            onEditNote={notes.openEditNote}
+            onRestoreNote={notes.restoreDeletedNote}
+            onHardDeleteNote={notes.permanentlyDeleteNote}
+            onTogglePin={notes.togglePinnedNote}
+          />
         ) : (
           <NotesList
             title={notes.title}
             notes={notes.filteredNotes}
-            isTrash={notes.activeTab === "trash"}
             onSearch={notes.setSearchQuery}
             onNewNote={notes.openNewNote}
             onEditNote={notes.openEditNote}
