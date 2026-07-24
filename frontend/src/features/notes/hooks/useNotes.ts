@@ -28,14 +28,19 @@ import type {
 type UseNotesOptions = {
   walletAddress?: string | null;
   publishNoteProof?: (intent: NoteTransactionIntent) => Promise<BlockchainProof>;
+  activeTab?: string;
 };
 
-export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = {}) {
+export function useNotes({
+  walletAddress,
+  publishNoteProof,
+  activeTab: activeRouteTab,
+}: UseNotesOptions = {}) {
   const [chain, setChain] = useState<ChainBlock[]>([]);
   const [trashChain, setTrashChain] = useState<ChainBlock[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [globalError, setGlobalError] = useState("");
-  const [activeTab, setActiveTab] = useState("all");
+  const [activeTab, setActiveTab] = useState(activeRouteTab || "all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
@@ -53,6 +58,12 @@ export function useNotes({ walletAddress, publishNoteProof }: UseNotesOptions = 
   useEffect(() => {
     localStorage.setItem("pinnedNoteIds", JSON.stringify(Array.from(pinnedNoteIds)));
   }, [pinnedNoteIds]);
+
+  useEffect(() => {
+    if (activeRouteTab && activeRouteTab !== activeTab) {
+      setActiveTab(activeRouteTab);
+    }
+  }, [activeRouteTab, activeTab]);
   const [activity, setActivity] = useState<NoteActivity[]>([]);
   const [activityPagination, setActivityPagination] = useState<
     NoteActivityResponse["pagination"]
