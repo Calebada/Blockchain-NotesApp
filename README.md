@@ -245,20 +245,18 @@ With Supabase configured, restarting the backend preserves note activity and con
 
 ## Screenshots
 
-> Add screenshots here before presenting — a few that work well:
->
-> - **All Notes view** — the main note grid with tag-colored cards
-> - **Live Wallet Transactions panel** — Available ADA / UTXO entries / Network stats
-> - **Transaction History** — a note action moving from `Pending` to `Confirmed`, with the Preprod explorer link
-> - **Wallet connection** — the sidebar wallet card before and after connecting Eternl
->
-> ```markdown
-> ![All Notes view](docs/screenshots/all-notes.png)
-> ![Wallet transactions panel](docs/screenshots/wallet-panel.png)
-> ![Transaction history](docs/screenshots/transaction-history.png)
-> ```
->
-> Save images under a `docs/screenshots/` folder in the repo and update the paths above to match.
+<h3>All Notes View</h3>
+<p>The main note grid with tag-colored cards.</p>
+<img src="docs/screenshots/all-notes.png" width="900">
+
+
+<h3>Transaction History</h3>
+<p>A note action moving from <b>Pending</b> to <b>Confirmed</b>, including the Preprod Explorer link.</p>
+<img src="docs/screenshots/transaction-history.png" width="900">
+
+<h3>Wallet Connection</h3>
+<p>The sidebar wallet card before and after connecting the Eternl wallet.</p>
+<img src="docs/screenshots/wallet-connection.png" width="900">
 
 ## Presenting This Project
 
